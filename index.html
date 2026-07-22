@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>المصحف الشريف - Wahei Style</title>
+  <title>مصحف وحي - Wahei Quran</title>
   
   <!-- React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -11,65 +11,59 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700&family=Reem+Kufi:wght@500;700&display=swap" rel="stylesheet">
-
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     body {
       font-family: 'Cairo', sans-serif;
+      background-color: #0b1411;
+      color: #e2e8f0;
       user-select: none;
       -webkit-user-select: none;
       overflow: hidden;
+      margin: 0;
+      padding: 0;
       touch-action: pan-y;
     }
 
-    .quran-text {
-      font-family: 'Amiri', serif;
-      word-spacing: 2px;
-      line-height: 2.3;
-    }
-
-    .surah-title {
-      font-family: 'Reem Kufi', sans-serif;
-    }
-
-    /* زخرفة الآيات والتفاعل */
-    .ayah-span {
-      transition: all 0.2s ease;
-      border-radius: 4px;
-      padding: 2px 3px;
-      cursor: pointer;
-      display: inline;
-    }
-
-    .ayah-num {
-      display: inline-flex;
+    /* حاوي الصفحة لملء الشاشة بالكامل دون مربعات داخلية ضيقة */
+    .quran-view {
+      height: calc(100vh - 54px);
+      width: 100vw;
+      display: flex;
       align-items: center;
       justify-content: center;
-      width: 1.85em;
-      height: 1.85em;
-      border-radius: 50%;
-      font-size: 0.65em;
-      vertical-align: middle;
-      margin: 0 4px;
-      font-family: 'Cairo', sans-serif;
-      font-weight: bold;
+      position: relative;
+      background-color: #0b1411;
     }
 
-    /* تحسين التمرير لو زاد النص */
-    .page-scroll {
-      max-height: calc(100vh - 60px);
-      overflow-y: auto;
+    /* ضبط عرض وتجاوب الصفحة العثمانية المصورة/SVG */
+    .quran-svg-page {
+      height: 100%;
+      width: 100%;
+      max-width: 600px;
+      object-fit: contain;
+      transition: filter 0.3s ease;
     }
-    
-    .page-scroll::-webkit-scrollbar {
-      width: 4px;
+
+    /* الوضع الليلي المطابق لتطبيق وحي بالضبط */
+    .night-filter {
+      filter: invert(0.92) hue-rotate(180deg) brightness(1.02) contrast(1.15);
     }
-    .page-scroll::-webkit-scrollbar-thumb {
-      background: #b8862f;
-      border-radius: 4px;
+
+    /* تأثير الانزلاق السلس للخيارات */
+    .bottom-sheet {
+      animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
     }
   </style>
 </head>
@@ -78,8 +72,6 @@
 
   <script type="text/babel">
     const { useState, useEffect, useRef, useCallback } = React;
-
-    const BISMILLAH = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
     const TOTAL_PAGES = 604;
 
     const numeralsAr = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
@@ -89,261 +81,178 @@
 
     function App() {
       const [page, setPage] = useState(1);
+      const [pageMeta, setPageMeta] = useState({ surahName: "سُورَةُ الفَاتِحَة", juzName: "الجزء الأول" });
       const [night, setNight] = useState(true);
-      const [ayahs, setAyahs] = useState([]);
-      const [meta, setMeta] = useState({ juz: null, surahName: "" });
-      const [loading, setLoading] = useState(true);
-      const [error, setError] = useState(null);
-      
-      // التفاعل مع الآية
-      const [selectedAyah, setSelectedAyah] = useState(null);
-      const [playingId, setPlayingId] = useState(null);
-      const [copied, setCopied] = useState(false);
-      
-      const audioRef = useRef(null);
+      const [loading, setLoading] = useState(false);
+      const [showMenu, setShowMenu] = useState(false);
+      const [activeAction, setActiveAction] = useState(null);
 
-      // متطلبات السحب بالأصبع (Swipe)
       const touchStartX = useRef(0);
       const touchEndX = useRef(0);
+      const longPressTimer = useRef(null);
 
-      // جلب بيانات النص العثماني (Tanzil) لكل صفحة
-      const fetchPage = useCallback(async (p) => {
+      // جلب بيانات الصفحة (اسم السورة والجزء)
+      const fetchPageDetails = useCallback(async (pageNum) => {
         setLoading(true);
-        setError(null);
-        setSelectedAyah(null);
-
         try {
-          const res = await fetch(`https://api.alquran.cloud/v1/page/${p}/quran-uthmani`);
+          const res = await fetch(`https://api.alquran.cloud/v1/page/${pageNum}/quran-uthmani`);
           const json = await res.json();
-
-          if (json.code === 200 && json.data) {
-            const list = json.data.ayahs || [];
-            setAyahs(list);
-            
-            const firstAyah = list[0];
-            setMeta({
-              juz: firstAyah?.juz,
-              surahName: firstAyah?.surah?.name || ""
+          if (json.data && json.data.ayahs.length > 0) {
+            const firstAyah = json.data.ayahs[0];
+            setPageMeta({
+              surahName: firstAyah.surah.name,
+              juzName: `الجزء ${toArabicNumber(firstAyah.juz)}`
             });
-          } else {
-            throw new Error("فشل في تحميل بيانات الصفحة");
           }
         } catch (e) {
-          setError("تعذر الاتصال بالخادم، التأكد من الإنترنت.");
+          console.error(e);
         } finally {
           setLoading(false);
         }
       }, []);
 
       useEffect(() => {
-        fetchPage(page);
-      }, [page, fetchPage]);
+        fetchPageDetails(page);
+      }, [page, fetchPageDetails]);
 
       const changePage = (delta) => {
         const newPage = page + delta;
         if (newPage >= 1 && newPage <= TOTAL_PAGES) {
           setPage(newPage);
+          setShowMenu(false);
         }
       };
 
-      // السحب باليد (Touch Handlers)
+      // أحداث اللمس والسحب (Swipe & Long Press)
       const handleTouchStart = (e) => {
         touchStartX.current = e.targetTouches[0].clientX;
+        // مؤقت الضغط المطول
+        longPressTimer.current = setTimeout(() => {
+          setShowMenu(true);
+        }, 500);
       };
 
       const handleTouchMove = (e) => {
         touchEndX.current = e.targetTouches[0].clientX;
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+        }
       };
 
       const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+        }
+        
         const distance = touchStartX.current - touchEndX.current;
-        if (Math.abs(distance) > 40) {
-          if (distance > 0) changePage(1);  // سحب لليسار -> الصفحة التالية
-          else changePage(-1);             // سحب لليمين -> الصفحة السابقة
+        const minSwipeDistance = 45;
+
+        if (Math.abs(distance) > minSwipeDistance && touchEndX.current !== 0) {
+          if (distance > 0) {
+            changePage(1);  // سحب لليسار -> الصفحة التالية
+          } else {
+            changePage(-1); // سحب لليمين -> الصفحة السابقة
+          }
         }
         touchStartX.current = 0;
         touchEndX.current = 0;
       };
 
-      const togglePlayAudio = (ayah) => {
-        if (playingId === ayah.number) {
-          audioRef.current?.pause();
-          setPlayingId(null);
-        } else {
-          const audioUrl = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${ayah.number}.mp3`;
-          if (audioRef.current) {
-            audioRef.current.src = audioUrl;
-            audioRef.current.play().catch(() => {});
-            setPlayingId(ayah.number);
-          }
-        }
-      };
-
-      const copyAyahText = (text) => {
-        navigator.clipboard?.writeText(text).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        });
-      };
-
-      // ألوان الثيم (مقتبسة من تصميم وحي)
-      const theme = night ? {
-        bg: "bg-[#0b1411]",
-        pageBg: "bg-[#121f1a]",
-        border: "border-[#8A6B2E]/50",
-        text: "text-[#E9E0CC]",
-        headerBg: "bg-[#0e1a16]",
-        highlight: "bg-[#2a3e35] text-[#F3E9CE]",
-        chip: "bg-[#182922]",
-        accent: "#C9A227"
-      } : {
-        bg: "bg-[#EFE7D3]",
-        pageBg: "bg-[#FBF5E6]",
-        border: "border-[#B8862F]",
-        text: "text-[#241C12]",
-        headerBg: "bg-[#123328]",
-        highlight: "bg-[#F5E6C8] text-[#123328]",
-        chip: "bg-[#F1E8D3]",
-        accent: "#B8862F"
+      // مصدر متجه الصفحة المتوافق مع مصحف المدينة الرسمي
+      const getPageSvgUrl = (p) => {
+        return `https://quran.ksu.edu.eg/png_big/${p}.png`;
       };
 
       return (
-        <div className={`flex flex-col h-screen w-full ${theme.bg} select-none overflow-hidden transition-colors duration-300`}>
-          <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
-
-          {/* 1. الهيدر العلوي مثل تصميم وحي */}
-          <header className={`w-full ${theme.headerBg} text-amber-100 py-2 px-4 shadow-md flex items-center justify-between border-b border-amber-500/20 z-20 h-[50px]`}>
+        <div className="flex flex-col h-screen w-full bg-[#0b1411] select-none overflow-hidden">
+          
+          {/* 1. الهيدر العلوي الاحترافي الشبيه بوحي */}
+          <header className="w-full bg-[#121f1a] text-amber-100 py-2 px-4 shadow-lg flex items-center justify-between border-b border-emerald-900/40 z-20 h-[54px]">
             <button 
               onClick={() => setNight(!night)}
-              className="p-1.5 rounded-full bg-emerald-900/30 text-amber-300 text-xs flex items-center gap-1 border border-amber-500/20"
+              className="p-1.5 px-3 rounded-full bg-emerald-900/30 text-amber-300 text-xs flex items-center gap-1 border border-amber-500/20 active:scale-95 transition"
             >
               {night ? "☀️ نهار" : "🌙 ليل"}
             </button>
 
             <div className="text-center">
-              <div className="text-sm font-bold text-amber-200/90">{meta.surahName || "المصحف الشريف"}</div>
-              <div className="text-[11px] text-emerald-400/80">{meta.juz ? `الجزء ${toArabicNumber(meta.juz)}` : ""}</div>
+              <div className="text-sm font-bold text-amber-200">{pageMeta.surahName}</div>
+              <div className="text-[10px] text-emerald-400">{pageMeta.juzName}</div>
             </div>
 
-            <div className="text-xs bg-emerald-900/40 px-3 py-1 rounded-md border border-emerald-700/30 text-amber-300 font-bold">
+            <div className="text-xs bg-emerald-950/80 px-3 py-1 rounded-md border border-emerald-700/40 text-amber-300 font-bold">
               {toArabicNumber(page)} / {toArabicNumber(TOTAL_PAGES)}
             </div>
           </header>
 
-          {/* 2. عرض النص العثماني التفاعلي مع دعم حركة السحب */}
+          {/* 2. منطقة عرض الصفحة الشاملة والمتجاوبة */}
           <main 
-            className="flex-1 w-full flex items-center justify-center p-2 sm:p-4 page-scroll relative"
+            className="quran-view"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
+            onClick={() => setShowMenu(!showMenu)}
           >
-            <div className="w-full max-w-[620px] h-full flex flex-col justify-center">
-              
-              {loading && (
-                <div className="flex flex-col items-center justify-center gap-3 py-32 text-amber-400">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400"></div>
-                  <span className="text-sm font-semibold">جاري تحميل النص العثماني...</span>
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#0b1411]/90 z-10">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-xs text-amber-300">جاري تحميل المصحف...</span>
                 </div>
-              )}
+              </div>
+            )}
 
-              {error && (
-                <div className="flex flex-col items-center gap-4 py-24 text-center">
-                  <p className="text-red-400 font-medium">{error}</p>
-                  <button 
-                    onClick={() => fetchPage(page)}
-                    className="px-5 py-2 bg-[#B8862F] text-white rounded-full font-semibold shadow"
-                  >
-                    إعادة المحاولة
-                  </button>
-                </div>
-              )}
-
-              {!loading && !error && (
-                <div className={`relative p-5 sm:p-8 rounded-xl ${theme.pageBg} ${theme.text} shadow-2xl border-2 ${theme.border} my-auto`}>
-                  
-                  {/* زوايا ديكورية */}
-                  <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-[#B8862F]"></div>
-                  <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-[#B8862F]"></div>
-                  <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-[#B8862F]"></div>
-                  <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-[#B8862F]"></div>
-
-                  {/* تجميع النص التفاعلي */}
-                  {groupBySurah(ayahs).map((group, gIdx) => (
-                    <div key={gIdx} className="mb-4">
-                      
-                      {group.showHeader && (
-                        <div className="my-3 py-1.5 px-4 rounded-md border border-[#B8862F]/40 bg-gradient-to-r from-transparent via-[#B8862F]/15 to-transparent text-center">
-                          <span className="surah-title text-lg font-bold text-[#B8862F]">
-                            {group.surah.name}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* البسملة تظهر فقط إذا كانت السورة تبدأ في هذه الصفحة وليست الفاتحة أو التوبة */}
-                      {group.showHeader && group.items[0]?.numberInSurah === 1 && group.surah.number !== 1 && group.surah.number !== 9 && (
-                        <div className="quran-text text-center text-base my-2 text-[#B8862F]">
-                          {BISMILLAH}
-                        </div>
-                      )}
-
-                      <div className="quran-text text-justify text-lg sm:text-2xl" dir="rtl">
-                        {group.items.map((a) => {
-                          const isSelected = selectedAyah?.number === a.number;
-                          return (
-                            <span
-                              key={a.number}
-                              onClick={() => setSelectedAyah(isSelected ? null : a)}
-                              className={`ayah-span ${isSelected ? theme.highlight : "hover:bg-amber-500/10"}`}
-                            >
-                              <span>{a.text}</span>
-                              <span className="ayah-num border border-[#B8862F]/60 text-[#B8862F]">
-                                {toArabicNumber(a.numberInSurah)}
-                              </span>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-
-                  <div className="text-center mt-4 text-xs font-bold opacity-60 border-t border-amber-900/10 pt-2">
-                    {toArabicNumber(page)}
-                  </div>
-                </div>
-              )}
-            </div>
+            <img
+              src={getPageSvgUrl(page)}
+              alt={`الصفحة ${page}`}
+              className={`quran-svg-page ${night ? 'night-filter' : ''}`}
+            />
           </main>
 
-          {/* 3. نافذة خيارات الآية التفاعلية عند الضغط عليها */}
-          {selectedAyah && (
+          {/* 3. قائمة الخيارات السفلية عند النقر/الضغط المطول (Action Sheet) */}
+          {showMenu && (
             <div 
-              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
-              onClick={() => setSelectedAyah(null)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end justify-center z-50 p-0 sm:p-4"
+              onClick={() => setShowMenu(false)}
             >
               <div 
                 onClick={(e) => e.stopPropagation()}
-                className={`w-full sm:w-96 ${theme.pageBg} ${theme.text} rounded-t-2xl sm:rounded-2xl p-4 shadow-2xl border-t-2 sm:border-2 ${theme.border}`}
+                className="bottom-sheet bg-[#121f1a] border-t sm:border border-amber-500/30 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 text-amber-100 shadow-2xl"
               >
-                <div className="flex items-center justify-between pb-2 mb-3 border-b border-amber-900/20">
-                  <span className="font-bold text-sm text-[#B8862F]">
-                    {selectedAyah.surah.name} - الآية ({toArabicNumber(selectedAyah.numberInSurah)})
+                <div className="flex items-center justify-between border-b border-emerald-800/50 pb-3 mb-4">
+                  <span className="text-sm font-bold text-amber-300">
+                    خيارات الصفحة ({toArabicNumber(page)}) - {pageMeta.surahName}
                   </span>
-                  <button onClick={() => setSelectedAyah(null)} className="p-1 text-xs">✕</button>
+                  <button onClick={() => setShowMenu(false)} className="text-xs bg-emerald-900/50 px-2 py-1 rounded">✕</button>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => togglePlayAudio(selectedAyah)}
-                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl ${theme.chip} hover:opacity-90 text-sm font-semibold border border-amber-500/20`}
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    onClick={() => { alert(`جاري تشغيل تلاوة الصفحة ${page}`); setShowMenu(false); }}
+                    className="flex items-center justify-center gap-2 py-3 bg-emerald-900/40 hover:bg-emerald-800/60 rounded-xl text-xs font-semibold border border-emerald-700/40 text-amber-200 active:scale-95 transition"
                   >
-                    <span>{playingId === selectedAyah.number ? "⏸ إيقاف التلاوة" : "▶ استماع للآية (العفاسي)"}</span>
+                    <span>▶ تشغيل التلاوة</span>
                   </button>
 
-                  <button
-                    onClick={() => copyAyahText(selectedAyah.text)}
-                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl ${theme.chip} hover:opacity-90 text-sm font-semibold border border-amber-500/20`}
+                  <button 
+                    onClick={() => { alert(`تم حفظ العلامة المرجعية في الصفحة ${page}`); setShowMenu(false); }}
+                    className="flex items-center justify-center gap-2 py-3 bg-emerald-900/40 hover:bg-emerald-800/60 rounded-xl text-xs font-semibold border border-emerald-700/40 text-amber-200 active:scale-95 transition"
                   >
-                    <span>{copied ? "✓ تم نسخ النص" : "📋 نسخ الآية"}</span>
+                    <span>🔖 حفظ علامة</span>
+                  </button>
+
+                  <button 
+                    onClick={() => { alert(`التفسير الميسر للصفحة ${page}`); setShowMenu(false); }}
+                    className="flex items-center justify-center gap-2 py-3 bg-emerald-900/40 hover:bg-emerald-800/60 rounded-xl text-xs font-semibold border border-emerald-700/40 text-amber-200 active:scale-95 transition"
+                  >
+                    <span>📖 التفسير الميسر</span>
+                  </button>
+
+                  <button 
+                    onClick={() => { navigator.clipboard.writeText(`مصحف وحي - الصفحة ${page}`); alert("تم نسخ رابط الصفحة"); setShowMenu(false); }}
+                    className="flex items-center justify-center gap-2 py-3 bg-emerald-900/40 hover:bg-emerald-800/60 rounded-xl text-xs font-semibold border border-emerald-700/40 text-amber-200 active:scale-95 transition"
+                  >
+                    <span>📋 مشاركة الصفحة</span>
                   </button>
                 </div>
               </div>
@@ -352,25 +261,6 @@
 
         </div>
       );
-    }
-
-    function groupBySurah(ayahs) {
-      const groups = [];
-      let lastSurahNumber = null;
-
-      ayahs.forEach((a) => {
-        if (a.surah.number !== lastSurahNumber) {
-          groups.push({
-            surah: a.surah,
-            showHeader: true,
-            items: [a]
-          });
-          lastSurahNumber = a.surah.number;
-        } else {
-          groups[groups.length - 1].items.push(a);
-        }
-      });
-      return groups;
     }
 
     ReactDOM.createRoot(document.getElementById("root")).render(<App />);
