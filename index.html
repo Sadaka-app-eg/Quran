@@ -3,15 +3,39 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>تطبيق أثر - المصحف الشريف</title>
-  
+  <title>تطبيق أثر - المصحف الشريف QCF V2</title>
+
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Reem+Kufi:wght@600;700&display=swap" rel="stylesheet">
+
+  <!-- ES-Modules Shim لتشغيل الـ import/export والـ React JSX في المتصفح تلقائياً -->
+  <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client"
+      }
+    }
+  </script>
 </head>
 <body class="bg-[#0b1411]">
   <div id="root"></div>
-  <script type="module" src="/src/main.jsx"></script>
+
+  <!-- تشغيل الـ App كـ Module يقرأ الـ import والـ export تلقائياً من مجلد src -->
+  <script type="module">
+    import React from 'react';
+    import ReactDOM from 'react-dom/client';
+    import App from './src/App.jsx';
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  </script>
 </body>
 </html>
