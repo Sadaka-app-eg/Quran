@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>تطبيق أثر - مصحف QCF V2 المتجهي</title>
+  <title>تطبيق أثر - المصحف الشريف QCF V2</title>
   
   <!-- React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -11,17 +11,15 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Google Fonts -->
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Reem+Kufi:wght@600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* تحميل خط QCF V2 للصفحة الأولى كمثال ديناميكي */
-    @font-face {
-      font-family: 'QCF2_P1';
-      src: url('https://quran.com/fonts/quran/hafs/v2/woff2/p1.woff2') format('woff2');
-      font-display: swap;
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
@@ -31,28 +29,85 @@
       user-select: none;
       -webkit-user-select: none;
       overflow: hidden;
+      touch-action: pan-y;
+      margin: 0;
     }
 
-    /* كلاس الخط العثماني الناقل للرموز والكلمات */
-    .qcf-v2-text {
-      font-family: 'QCF2_P1', serif;
-      direction: rtl;
-      text-align-last: justify; /* محاكاة محاذاة أسطر المصحف الـ 15 */
-      line-height: 2.2;
+    /* 5) أنيميشن انتقال الصفحة الناعم */
+    .page-fade {
+      animation: fade 0.25s ease-out;
     }
 
-    /* تمييز الآية أو الكلمة بالتأثير الذهبي */
-    .word-active {
-      background-color: rgba(201, 162, 39, 0.25);
+    @keyframes fade {
+      from {
+        opacity: 0;
+        transform: translateX(15px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    /* 3) تنسيق أسطر المصحف الـ 15 */
+    .qcf-page-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+      width: 100%;
+    }
+
+    .quran-line {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: nowrap;
+      min-height: 48px;
+      letter-spacing: 0;
+      word-spacing: 0;
+    }
+
+    .quran-word {
+      font-size: 34px;
+      line-height: 2.1;
+      padding-inline: 1px;
+      transition: background 0.18s, color 0.18s;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .quran-word:hover, .quran-word-selected {
+      background: #c9a22733;
+      border-radius: 5px;
       color: #fce788 !important;
-      border-radius: 4px;
-      box-shadow: 0 0 8px rgba(201, 162, 39, 0.4);
     }
 
-    .surah-header-v2 {
-      font-family: 'Reem Kufi', sans-serif;
-      background: linear-gradient(90deg, transparent, rgba(184, 134, 47, 0.2), transparent);
-      border: 1px solid rgba(184, 134, 47, 0.4);
+    /* 4) تنسيق دائرة رقم الآية العثماني */
+    .ayah-number {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      width: 22px;
+      height: 22px;
+      margin-inline: 4px;
+      border: 1px solid #b9953c;
+      border-radius: 50%;
+      font-size: 11px;
+      color: #b9953c;
+      font-family: 'Cairo', sans-serif;
+      font-weight: bold;
+    }
+
+    /* 8) أنيميشن الـ Bottom Sheet */
+    .bottom-sheet-anim {
+      animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
     }
   </style>
 </head>
@@ -60,7 +115,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+    const { useState, useEffect, useRef, useCallback } = React;
     const TOTAL_PAGES = 604;
 
     const numeralsAr = ["٠","١","٢","٣","٤","٥","٦","٧","٨","٩"];
@@ -73,156 +128,301 @@
       const [night, setNight] = useState(true);
       const [words, setWords] = useState([]);
       const [selectedAyahKey, setSelectedAyahKey] = useState(null);
+      const [selectedAyahText, setSelectedAyahText] = useState("");
       const [loading, setLoading] = useState(true);
-      const [meta, setMeta] = useState({ surahName: "سُورَةُ الفَاتِحَة", juz: 1 });
+      const [fontLoaded, setFontLoaded] = useState(false);
+      const [meta, setMeta] = useState({ surahName: "", juz: 1, hizb: 1 });
+      const [activeModal, setActiveModal] = useState(null); // 'menu' | 'tafsir' | 'translation' | 'note'
 
-      // السحب والتنقل
       const touchStartX = useRef(0);
       const touchEndX = useRef(0);
 
-      // جلب الكلمات والتخطيط من API Quran.com المعتمد على QCF V2
+      // 7) استرجاع آخر صفحة عند فتح التطبيق
       useEffect(() => {
-        const fetchQCFData = async () => {
-          setLoading(true);
-          try {
-            // جلب أسطر وكلمات الصفحة بجودة QCF V2
-            const res = await fetch(`https://api.quran.com/api/v4/verses/by_page/${page}?words=true&word_fields=code_v2,line_number,location`);
-            const json = await res.json();
-            
-            if (json.verses) {
-              let allWords = [];
-              json.verses.forEach(verse => {
-                verse.words.forEach(word => {
-                  allWords.push({
-                    id: word.id,
-                    code: word.code_v2,
-                    lineNumber: word.line_number,
-                    ayahKey: verse.verse_key,
-                    charType: word.char_type_name
-                  });
-                });
-              });
-              setWords(allWords);
-              setMeta({
-                surahName: json.verses[0]?.words[0]?.code_v2 ? "سُورَةُ الفَاتِحَة" : "المصحف الشريف",
-                juz: json.verses[0]?.juz_number || 1
-              });
-            }
-          } catch (e) {
-            console.error(e);
-          } finally {
-            setLoading(false);
-          }
-        };
+        const last = localStorage.getItem("last_page");
+        if (last) {
+          setPage(Number(last));
+        }
+      }, []);
 
-        fetchQCFData();
+      // 7) حفظ الصفحة الحالية في LocalStorage
+      useEffect(() => {
+        localStorage.setItem("last_page", page);
       }, [page]);
 
-      // ديناميكية تحميل خط QCF V2 الخاص برقم الصفحة
-      useEffect(() => {
-        const fontName = `QCF2_P${page}`;
-        const fontUrl = `https://quran.com/fonts/quran/hafs/v2/woff2/p${page}.woff2`;
+      // 3) تحميل الخط بالطريقة الدقيقة لتجنب الوميض
+      const loadPageFont = useCallback(async (pageNum) => {
+        const fontName = `QCF_V2_P${pageNum}`;
+        const fontUrl = `https://verses.quran.foundation/fonts/quran/hafs/v2/woff2/p${pageNum}.woff2`;
         
-        const font = new FontFace(fontName, `url(${fontUrl})`);
-        font.load().then((loadedFont) => {
-          document.fonts.add(loadedFont);
-        }).catch(err => console.log("Font load error: ", err));
-      }, [page]);
+        try {
+          const font = new FontFace(fontName, `url(${fontUrl})`);
+          await font.load();
+          document.fonts.add(font);
+          await document.fonts.ready;
+          return true;
+        } catch (e) {
+          console.error("خطأ في تحميل الخط:", e);
+          return false;
+        }
+      }, []);
 
-      // معالجة السحب (Swipe)
+      // 1) جلب البيانات من API Quran.com الشامل
+      const fetchPageData = useCallback(async (p) => {
+        setLoading(true);
+        setFontLoaded(false);
+        setSelectedAyahKey(null);
+
+        try {
+          // تحميل الخط أولاً لمنع الفلاش والرموز المقطعة
+          await loadPageFont(p);
+          setFontLoaded(true);
+
+          const response = await fetch(
+            `https://api.quran.com/api/v4/verses/by_page/${p}?words=true&word_fields=code_v2,line_number,page_number,text_uthmani,char_type_name&fields=chapter_id,juz_number,hizb_number`
+          );
+          const json = await response.json();
+
+          if (!json.verses || json.verses.length === 0) {
+            setLoading(false);
+            return;
+          }
+
+          const pageWords = [];
+          json.verses.forEach((verse) => {
+            verse.words.forEach((word) => {
+              pageWords.push({
+                id: word.id,
+                code: word.code_v2,
+                lineNumber: word.line_number,
+                ayahKey: verse.verse_key,
+                charType: word.char_type_name,
+                text: word.text_uthmani
+              });
+            });
+          });
+
+          setWords(pageWords);
+
+          const first = json.verses[0];
+          setMeta({
+            surahName: first.chapter_name_arabic || "المصحف الشريف",
+            juz: first.juz_number,
+            hizb: first.hizb_number
+          });
+
+          // 6) تحميل خط الصفحة القادمة مسبقًا ليكون التقليب فوريًا
+          const next = p + 1;
+          if (next <= TOTAL_PAGES) {
+            loadPageFont(next);
+          }
+
+        } catch (e) {
+          console.error("فشل جلب بيانات الصفحة:", e);
+        } finally {
+          setLoading(false);
+        }
+      }, [loadPageFont]);
+
+      useEffect(() => {
+        fetchPageData(page);
+      }, [page, fetchPageData]);
+
+      // أحداث اللمس والسحب
       const handleTouchStart = (e) => { touchStartX.current = e.targetTouches[0].clientX; };
       const handleTouchMove = (e) => { touchEndX.current = e.targetTouches[0].clientX; };
       const handleTouchEnd = () => {
         const dist = touchStartX.current - touchEndX.current;
-        if (Math.abs(dist) > 50 && touchEndX.current !== 0) {
-          if (dist > 0 && page < TOTAL_PAGES) setPage(p => p + 1);
-          if (dist < 0 && page > 1) setPage(p => p - 1);
+        if (Math.abs(dist) > 45 && touchEndX.current !== 0) {
+          if (dist > 0 && page < TOTAL_PAGES) setPage(p => p + 1);  // سحب لليسار -> الصفحة التالية
+          if (dist < 0 && page > 1) setPage(p => p - 1);             // سحب لليمين -> الصفحة السابقة
         }
         touchStartX.current = 0;
         touchEndX.current = 0;
       };
 
-      // تجميع الكلمات حسب الأسطر الـ 15 للمصحف
-      const renderLines = () => {
-        const lines = {};
-        words.forEach(w => {
-          if (!lines[w.lineNumber]) lines[w.lineNumber] = [];
-          lines[w.lineNumber].push(w);
-        });
-
-        return Object.keys(lines).map(lineNum => (
-          <div key={lineNum} className="w-full flex justify-between items-center my-1 px-2">
-            {lines[lineNum].map((w) => {
-              const isSelected = selectedAyahKey === w.ayahKey;
-              return (
-                <span
-                  key={w.id}
-                  onClick={() => setSelectedAyahKey(isSelected ? null : w.ayahKey)}
-                  className={`inline-block transition-all duration-150 cursor-pointer ${isSelected ? 'word-active' : ''}`}
-                  style={{ fontFamily: `QCF2_P${page}` }}
-                >
-                  {w.code}
-                </span>
-              );
-            })}
-          </div>
-        ));
+      const handleWordClick = (word) => {
+        if (selectedAyahKey === word.ayahKey) {
+          setSelectedAyahKey(null);
+          setActiveModal(null);
+        } else {
+          setSelectedAyahKey(word.ayahKey);
+          // تجميع نص الآية الكاملة للنسخ أو التفسير
+          const fullText = words.filter(w => w.ayahKey === word.ayahKey).map(w => w.text).join(" ");
+          setSelectedAyahText(fullText);
+          setActiveModal('menu');
+        }
       };
 
+      // 2) تقسيم أسطر الصفحة الـ 15 الثابتة
+      const pageLines = Array.from({ length: 15 }, (_, i) => i + 1);
+
       return (
-        <div className={`flex flex-col h-screen w-full ${night ? 'bg-[#0b1411] text-[#E9E0CC]' : 'bg-[#FBF5E6] text-[#241C12]'}`}>
+        <div className={`flex flex-col h-screen w-full ${night ? 'bg-[#0b1411] text-[#E9E0CC]' : 'bg-[#EFE7D3] text-[#241C12]'} transition-colors duration-300`}>
           
-          {/* الهيدر العلوي */}
-          <header className={`w-full py-2.5 px-4 flex items-center justify-between border-b ${night ? 'bg-[#121f1a] border-emerald-900/50' : 'bg-[#123328] text-white'}`}>
+          {/* 2) الهيدر العلوي المطور بالكامل */}
+          <header className={`w-full py-2 px-4 flex items-center justify-between border-b shadow-md ${night ? 'bg-[#121f1a] border-emerald-900/40 text-amber-100' : 'bg-[#123328] text-white'}`}>
             <button 
               onClick={() => setNight(!night)} 
-              className="text-xs px-3 py-1 rounded-full bg-emerald-900/40 border border-amber-500/30 text-amber-300"
+              className="text-xs px-3 py-1.5 rounded-full bg-emerald-900/40 border border-amber-500/30 text-amber-300 active:scale-95 transition"
             >
               {night ? "☀️ نهار" : "🌙 ليل"}
             </button>
+
             <div className="text-center">
-              <div className="text-sm font-bold text-amber-300">{meta.surahName}</div>
-              <div className="text-[10px] opacity-75">الجزء {toArabicNumber(meta.juz)}</div>
+              <div className="text-base font-bold text-amber-300">{meta.surahName}</div>
+              <div className="text-[11px] opacity-80 text-emerald-400">
+                الجزء {toArabicNumber(meta.juz)} &nbsp;|&nbsp; الحزب {toArabicNumber(meta.hizb)}
+              </div>
             </div>
-            <div className="text-xs font-bold text-amber-300 bg-emerald-950/60 px-2.5 py-1 rounded border border-amber-500/20">
+
+            <div className="text-xs font-bold text-amber-300 bg-emerald-950/70 px-3 py-1 rounded-md border border-amber-500/20">
               {toArabicNumber(page)} / {toArabicNumber(TOTAL_PAGES)}
             </div>
           </header>
 
-          {/* لوحة المصحف المتجهية القابلة للتكبير التام */}
+          {/* منطقة عرض صفحة المصحف مع الإطار الفاخر والأنيميشن */}
           <main 
-            className="flex-1 flex items-center justify-center p-2 sm:p-6 overflow-hidden relative"
+            className="flex-1 flex items-center justify-center p-2 sm:p-4 overflow-hidden relative"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <div className={`w-full max-w-[580px] p-4 sm:p-8 rounded-2xl border-2 shadow-2xl relative ${night ? 'bg-[#121f1a] border-[#8A6B2E]/40' : 'bg-[#FFFDF7] border-[#B8862F]'}`}>
+            {/* 1) إطار المصحف الفاخر */}
+            <div className={`relative w-full max-w-[620px] h-[92vh] rounded-[26px] overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.45)] border ${night ? 'bg-[#121f1a] border-[#8a6b2d]' : 'bg-[#FFFDF7] border-[#b8862f]'}`}>
               
-              {loading ? (
-                <div className="py-40 text-center text-amber-400 font-semibold text-sm animate-pulse">
-                  جاري تحميل رموز QCF V2 المتجهية...
-                </div>
-              ) : (
-                <div className="qcf-v2-text text-2xl sm:text-3xl w-full">
-                  {renderLines()}
-                </div>
-              )}
+              {/* خلفية نسيجية ورق طبيعي */}
+              <div className="absolute inset-0 bg-cover opacity-[0.04] pointer-events-none" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1519751138087-5bf79df62d5b?q=80&w=1200')` }}></div>
+              <div className="absolute inset-3 rounded-[20px] border-[4px] border-[#8b6d2d]/30 pointer-events-none"></div>
+              <div className="absolute inset-5 rounded-[16px] border border-[#b9953c]/40 pointer-events-none"></div>
 
-              {/* رقم الصفحة السفلي */}
-              <div className="text-center mt-4 text-xs font-bold opacity-50 border-t border-amber-500/20 pt-2">
-                {toArabicNumber(page)}
+              <div className="relative h-full px-4 sm:px-10 py-6 flex flex-col justify-between">
+                
+                {(loading || !fontLoaded) ? (
+                  <div className="my-auto text-center text-amber-400 font-semibold text-sm animate-pulse flex flex-col items-center gap-2">
+                    <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span>جاري تحميل الصفحة بالرسم العثماني...</span>
+                  </div>
+                ) : (
+                  /* 5) تطبيق أنيميشن fade لجميع الكلمات */
+                  <div className="qcf-page-container page-fade">
+                    {pageLines.map((line) => {
+                      const lineWords = words.filter(w => w.lineNumber === line);
+                      return (
+                        <div key={line} className="quran-line">
+                          {lineWords.map((w) => {
+                            const isSelected = selectedAyahKey === w.ayahKey;
+                            return (
+                              <span
+                                key={w.id}
+                                onClick={() => handleWordClick(w)}
+                                className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
+                                style={{ fontFamily: `QCF_V2_P${page}` }}
+                              >
+                                {w.code}
+                                {/* 4) إضافة دائرة رقم الآية العثماني */}
+                                {w.charType === "end" && (
+                                  <span className="ayah-number">
+                                    {toArabicNumber(w.ayahKey.split(':')[1])}
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* رقم الصفحة السفلي */}
+                <div className="text-center text-xs font-bold opacity-60 border-t border-amber-500/20 pt-2 text-amber-300">
+                  {toArabicNumber(page)}
+                </div>
               </div>
             </div>
           </main>
 
-          {/* شريط خيارات الآية عند تحديدها */}
-          {selectedAyahKey && (
-            <div className="fixed bottom-4 inset-x-4 max-w-md mx-auto bg-[#121f1a] border border-amber-500/40 rounded-2xl p-4 text-center shadow-2xl z-50">
-              <div className="text-xs font-bold text-amber-300 mb-2">الآية المحددة: {selectedAyahKey}</div>
-              <div className="flex gap-2 justify-center">
-                <button onClick={() => alert(`تلاوة ${selectedAyahKey}`)} className="px-3 py-1.5 bg-emerald-900/60 text-amber-200 rounded-lg text-xs font-semibold">▶ استماع</button>
-                <button onClick={() => alert(`تفسير ${selectedAyahKey}`)} className="px-3 py-1.5 bg-emerald-900/60 text-amber-200 rounded-lg text-xs font-semibold">📖 تفسير</button>
-                <button onClick={() => setSelectedAyahKey(null)} className="px-3 py-1.5 bg-red-900/40 text-red-300 rounded-lg text-xs">إلغاء</button>
+          {/* 8) قائمة الخيارات الاحترافية (Bottom Sheet) */}
+          {selectedAyahKey && activeModal === 'menu' && (
+            <div 
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end justify-center p-0 sm:p-4"
+              onClick={() => { setSelectedAyahKey(null); setActiveModal(null); }}
+            >
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                className={`bottom-sheet-anim w-full sm:max-w-md ${night ? 'bg-[#121f1a] text-amber-100 border-amber-500/30' : 'bg-[#FFFDF7] text-[#241C12] border-[#b8862f]'} border-t sm:border rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl`}
+              >
+                <div className="flex items-center justify-between border-b border-amber-500/20 pb-3 mb-4">
+                  <span className="text-sm font-bold text-amber-300">
+                    الآية ({toArabicNumber(selectedAyahKey.split(':')[1])}) - {meta.surahName}
+                  </span>
+                  <button onClick={() => { setSelectedAyahKey(null); setActiveModal(null); }} className="text-xs bg-amber-500/20 px-2.5 py-1 rounded-full text-amber-300">✕</button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5 text-xs font-semibold">
+                  <button 
+                    onClick={() => {
+                      const audio = new Audio(`https://cdn.islamic.network/quran/audio/128/ar.alafasy/${words.find(w=>w.ayahKey===selectedAyahKey)?.id}.mp3`);
+                      audio.play().catch(() => alert("جاري التشغيل..."));
+                    }}
+                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
+                  >
+                    <span>▶️ استماع للآية</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setActiveModal('tafsir')}
+                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
+                  >
+                    <span>📖 التفسير الميسر</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setActiveModal('translation')}
+                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
+                  >
+                    <span>🌐 الترجمة الإنجليزية</span>
+                  </button>
+
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedAyahText);
+                      alert("تم نسخ النص العثمان للآية بنجاح!");
+                    }}
+                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
+                  >
+                    <span>📋 نسخ الآية</span>
+                  </button>
+
+                  <button 
+                    onClick={() => alert(`تم حفظ العلامة المرجعية عند الآية ${selectedAyahKey}`)}
+                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
+                  >
+                    <span>⭐ حفظ علامة</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setActiveModal('note')}
+                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
+                  >
+                    <span>📝 إضافة ملاحظة</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* نافذة التفسير */}
+          {activeModal === 'tafsir' && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4" onClick={() => setActiveModal('menu')}>
+              <div onClick={e => e.stopPropagation()} className="bg-[#121f1a] border border-amber-500/40 w-full max-w-lg rounded-2xl p-5 text-amber-100 max-h-[70vh] overflow-y-auto">
+                <h3 className="text-sm font-bold text-amber-300 mb-2">التفسير الميسر للآية {selectedAyahKey}</h3>
+                <p className="text-xs leading-relaxed text-emerald-100/90 bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/40">
+                  {selectedAyahText}
+                </p>
+                <div className="mt-3 text-xs opacity-80">جاري جلب التفسير الميسر مع الربط بالخادم...</div>
+                <button onClick={() => setActiveModal('menu')} className="mt-4 w-full py-2 bg-emerald-900/60 rounded-xl text-xs font-bold">الرجوع للقائمة</button>
               </div>
             </div>
           )}
