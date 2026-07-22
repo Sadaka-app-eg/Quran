@@ -10,7 +10,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -132,6 +132,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
+    
     const { useState, useEffect, useRef, useCallback } = React;
     const TOTAL_PAGES = 604;
 
@@ -141,6 +142,7 @@
     }
 
     function App() {
+      const [showControls, setShowControls] = useState(false); // افتراضياً الشاشة كاملة بدونهما
       const [page, setPage] = useState(1);
       const [night, setNight] = useState(true);
       const [words, setWords] = useState([]);
@@ -152,6 +154,15 @@
       const [meta, setMeta] = useState({ surahName: "", juz: 1, hizb: 1 });
       const [activeModal, setActiveModal] = useState(null);
 
+const [tafsirText, setTafsirText] = useState("");
+const [tafsirLoading, setTafsirLoading] = useState(false);
+const [repeatCount, setRepeatCount] = useState(1);
+const [startAyahKey, setStartAyahKey] = useState(null);
+const [endAyahKey, setEndAyahKey] = useState(null);
+const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+const cardRef = useRef(null);
+
+      
       const touchStartX = useRef(0);
       const touchEndX = useRef(0);
 
@@ -325,6 +336,53 @@
         }
       };
 
+// جلب التفسير الميسر
+const fetchTafsir = useCallback(async (key) => {
+  if (!key) return;
+  setTafsirLoading(true);
+  try {
+    const res = await fetch(`https://api.quran.com/api/v4/tafsirs/169/by_ayah/${key}`);
+    const json = await res.json();
+    setTafsirText(json.tafsir?.text?.replace(/<[^>]+>/g, '') || "التفسير غير متوفر حالياً.");
+  } catch (e) {
+    setTafsirText("حدث خطأ أثناء جلب التفسير.");
+  } finally {
+    setTafsirLoading(false);
+  }
+}, []);
+
+// تنقل التفسير للآية التالية أو السابقة
+const navigateAyah = (dir) => {
+  if (!selectedAyahKey) return;
+  const [s, a] = selectedAyahKey.split(':').map(Number);
+  const nextA = dir === 'next' ? a + 1 : Math.max(1, a - 1);
+  const newKey = `${s}:${nextA}`;
+  setSelectedAyahKey(newKey);
+  const txt = words.filter(w => w.ayahKey === newKey).map(w => w.text).join(" ");
+  setSelectedAyahText(txt || "نص الآية");
+  fetchTafsir(newKey);
+};
+
+// توليد صورة الآية الفخمة
+const generateAyahImage = async () => {
+  if (!cardRef.current) return;
+  setIsGeneratingImage(true);
+  try {
+    const canvas = await html2canvas(cardRef.current, { backgroundColor: '#0b1411', scale: 2 });
+    const image = canvas.toDataURL("image/png");
+    const link = document.createElement('a');
+    link.href = image;
+    link.download = `Ayah_${selectedAyahKey}.png`;
+    link.click();
+  } catch (e) {
+    alert("حدث خطأ أثناء تحميل الصورة.");
+  } finally {
+    setIsGeneratingImage(false);
+  }
+};
+
+
+      
       // 10) دالة المشاركة الاحترافية مع الـ Fallback
       const handleShare = () => {
         if (navigator.share) {
@@ -343,29 +401,27 @@
       return (
         <div className={`flex flex-col h-screen w-full ${night ? 'bg-[#0b1411] text-[#E9E0CC]' : 'bg-[#EFE7D3] text-[#241C12]'} transition-colors duration-300`}>
           
-          {/* الهيدر العلوي */}
-          <header className={`w-full py-2 px-4 flex items-center justify-between border-b shadow-md ${night ? 'bg-[#121f1a] border-emerald-900/40 text-amber-100' : 'bg-[#123328] text-white'}`}>
-            <button 
-              onClick={() => setNight(!night)} 
-              className="text-xs px-3 py-1.5 rounded-full bg-emerald-900/40 border border-amber-500/30 text-amber-300 active:scale-95 transition"
-            >
-              {night ? "☀️ نهار" : "🌙 ليل"}
-            </button>
-
-            <div className="text-center">
-              <div className="text-base font-bold text-amber-300">{meta.surahName}</div>
-              <div className="text-[11px] opacity-80 text-emerald-400">
-                الجزء {toArabicNumber(meta.juz)} &nbsp;|&nbsp; الحزب {toArabicNumber(meta.hizb)}
-              </div>
-            </div>
-
-            <div className="text-xs font-bold text-amber-300 bg-emerald-950/70 px-3 py-1 rounded-md border border-amber-500/20">
-              {toArabicNumber(page)} / {toArabicNumber(TOTAL_PAGES)}
-            </div>
-          </header>
+    {/* الهيدر العلوي المشروط */}
+{showControls && (
+  <header className="w-full py-2.5 px-4 flex items-center justify-between bg-[#123328] text-white shadow-xl z-40 transition-all duration-300">
+    <div className="flex items-center gap-3 text-base">
+      <button onClick={() => setNight(!night)} title="الوضع">{night ? "🌙" : "☀️"}</button>
+      <button onClick={() => setActiveModal('repeater')} title="تكرار الآيات">🔁</button>
+      <button onClick={() => alert(`تم حفظ العلامة عند الصفحة ${page}`)} title="علامة مرجعية">🔖</button>
+    </div>
+    <div className="text-center">
+      <div className="text-sm font-bold text-amber-300">{meta.surahName}</div>
+      <div className="text-[10px] opacity-80 text-emerald-300">الجزء {toArabicNumber(meta.juz)}</div>
+    </div>
+    <div className="text-xs font-bold text-amber-300 bg-emerald-950/70 px-2.5 py-1 rounded-md border border-amber-500/20">
+      {toArabicNumber(page)} / {toArabicNumber(TOTAL_PAGES)}
+    </div>
+  </header>
+)}
 
           {/* منطقة المصحف الإطار والأنيميشن */}
           <main 
+            onClick={() => setShowControls(prev => !prev)}
             className="flex-1 flex items-center justify-center p-2 sm:p-4 overflow-hidden relative"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
@@ -430,73 +486,161 @@
             </div>
           </main>
 
-          {/* 8 & 10) قائمة الخيارات الشاملة والنسخ والمشاركة */}
-          {selectedAyahKey && activeModal === 'menu' && (
-            <div 
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end justify-center p-0 sm:p-4"
-              onClick={() => { setSelectedAyahKey(null); setActiveModal(null); }}
-            >
-              <div 
-                onClick={(e) => e.stopPropagation()}
-                className={`bottom-sheet-anim w-full sm:max-w-md ${night ? 'bg-[#121f1a] text-amber-100 border-amber-500/30' : 'bg-[#FFFDF7] text-[#241C12] border-[#b8862f]'} border-t sm:border rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl`}
-              >
-                <div className="flex items-center justify-between border-b border-amber-500/20 pb-3 mb-4">
-                  <span className="text-sm font-bold text-amber-300">
-                    الآية ({toArabicNumber(selectedAyahKey.split(':')[1])}) - {meta.surahName}
-                  </span>
-                  <button onClick={() => { setSelectedAyahKey(null); setActiveModal(null); }} className="text-xs bg-amber-500/20 px-2.5 py-1 rounded-full text-amber-300">✕</button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2.5 text-xs font-semibold">
-                  <button 
-                    onClick={() => {
-                      const audio = new Audio(`https://cdn.islamic.network/quran/audio/128/ar.alafasy/${words.find(w=>w.ayahKey===selectedAyahKey)?.id}.mp3`);
-                      audio.play().catch(() => alert("جاري التشغيل..."));
-                    }}
-                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
-                  >
-                    <span>▶️ استماع للآية</span>
-                  </button>
-
-                  <button 
-                    onClick={() => setActiveModal('tafsir')}
-                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
-                  >
-                    <span>📖 التفسير الميسر</span>
-                  </button>
-
-                  <button 
-                    onClick={() => setActiveModal('translation')}
-                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
-                  >
-                    <span>🌐 الترجمة الإنجليزية</span>
-                  </button>
-
-                  {/* 10) استخدام دالة المشاركة والنسخ المحدثة */}
-                  <button 
-                    onClick={handleShare}
-                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
-                  >
-                    <span>📤 مشاركة / نسخ</span>
-                  </button>
-
-                  <button 
-                    onClick={() => alert(`تم حفظ العلامة المرجعية عند الآية ${selectedAyahKey}`)}
-                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
-                  >
-                    <span>⭐ حفظ علامة</span>
-                  </button>
-
-                  <button 
-                    onClick={() => setActiveModal('note')}
-                    className="flex items-center gap-2 p-3 rounded-xl bg-emerald-900/30 hover:bg-emerald-800/40 border border-emerald-700/30 text-amber-200"
-                  >
-                    <span>📝 إضافة ملاحظة</span>
-                  </button>
-                </div>
+{/* الشريط السفلي العائم */}
+          {showControls && (
+            <footer className="fixed bottom-0 inset-x-0 bg-[#123328] border-t border-emerald-700/50 p-3 flex flex-col gap-2 z-40 transition-all duration-300">
+              {/* شريط تقدم الصفحة */}
+              <div className="flex items-center gap-2 px-2">
+                <span className="text-[10px] text-amber-200 font-bold">{toArabicNumber(1)}</span>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max={TOTAL_PAGES} 
+                  value={page} 
+                  onChange={(e) => handlePageChange(Number(e.target.value))}
+                  className="w-full accent-amber-400 h-1.5 bg-emerald-950 rounded-lg cursor-pointer"
+                />
+                <span className="text-[10px] text-amber-200 font-bold">{toArabicNumber(TOTAL_PAGES)}</span>
               </div>
-            </div>
+
+              {/* أزرار التحكم والتشغيل والبحث */}
+              <div className="flex items-center justify-around text-amber-200 text-xl pt-1">
+                <button onClick={() => setShowJump(true)} title="بحث/انتقال">🔍</button>
+                <button onClick={() => setActiveModal('repeater')} title="تكرار الآيات">🔁</button>
+                <button 
+                  onClick={() => {
+                    const [sNum, aNum] = (selectedAyahKey || `${page}:1`).split(':');
+                    const audio = new Audio(`https://everyayah.com/data/Alafasy_128kbps/${String(sNum||1).padStart(3,'0')}${String(aNum||1).padStart(3,'0')}.mp3`);
+                    audio.play().catch(() => alert("جاري التشغيل..."));
+                  }} 
+                  className="w-10 h-10 rounded-full bg-amber-500 text-emerald-950 flex items-center justify-center font-bold text-lg shadow-md cursor-pointer"
+                  title="تشغيل الصوت"
+                >
+                  ▶️
+                </button>
+                <button onClick={() => alert(`تم حفظ العلامة عند الصفحة ${page}`)} title="العلامات">🔖</button>
+                <button onClick={() => handlePageChange(page + 1)} title="التالي">⏭️</button>
+              </div>
+            </footer>
           )}
+
+
+
+          
+         
+{/* قائمة خيارات الآية */}
+</div> ); }
+  <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end justify-center p-0 sm:p-4" onClick={() => { setSelectedAyahKey(null); setActiveModal(null); }}>
+    <div onClick={(e) => e.stopPropagation()} className={`bottom-sheet-anim w-full sm:max-w-md ${night ? 'bg-[#121f1a] text-amber-100 border-amber-500/30' : 'bg-[#FFFDF7] text-[#241C12] border-[#b8862f]'} border-t sm:border rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl`}>
+      <div className="flex items-center justify-between border-b border-amber-500/20 pb-3 mb-4">
+        <span className="text-sm font-bold text-amber-300">
+          الآية ({toArabicNumber(selectedAyahKey.split(':')[1])}) - {meta.surahName}
+        </span>
+        <button onClick={() => { setSelectedAyahKey(null); setActiveModal(null); }} className="text-xs bg-amber-500/20 px-2.5 py-1 rounded-full text-amber-300">✕</button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5 text-xs font-semibold">
+        <button onClick={() => { fetchTafsir(selectedAyahKey); setActiveModal('tafsir'); }} className="p-3 rounded-xl bg-emerald-900/30 border border-emerald-700/30 text-amber-200 flex items-center justify-center gap-2">
+          📖 التفسير الميسر
+        </button>
+        <button onClick={() => setActiveModal('shareChoice')} className="p-3 rounded-xl bg-emerald-900/30 border border-emerald-700/30 text-amber-200 flex items-center justify-center gap-2">
+          📤 مشاركة (نص / صورة)
+        </button>
+        <button onClick={() => { setStartAyahKey(selectedAyahKey); setActiveModal('repeater'); }} className="p-3 rounded-xl bg-emerald-900/30 border border-emerald-700/30 text-amber-200 flex items-center justify-center gap-2">
+          🔁 تحديد لتكرار التلاوة
+        </button>
+        <button onClick={() => alert(`تم حفظ العلامة عند الآية ${selectedAyahKey}`)} className="p-3 rounded-xl bg-emerald-900/30 border border-emerald-700/30 text-amber-200 flex items-center justify-center gap-2">
+          🔖 حفظ علامة وقوف
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* اختيار طريقة المشاركة */}
+{activeModal === 'shareChoice' && (
+  <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setActiveModal('menu')}>
+    <div onClick={e => e.stopPropagation()} className="bg-[#121f1a] border border-amber-500/40 w-full max-w-xs rounded-2xl p-5 text-center text-amber-100">
+      <h3 className="text-sm font-bold text-amber-300 mb-4">اختر طريقة المشاركة</h3>
+      <div className="flex flex-col gap-3 text-xs font-bold">
+        <button onClick={handleShare} className="py-3 bg-emerald-900/50 border border-emerald-700/40 rounded-xl">📝 مشاركة كنص</button>
+        <button onClick={() => setActiveModal('imageCard')} className="py-3 bg-amber-600/80 rounded-xl text-white">🖼️ بطاقة صورة فخمة</button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* مودال الصورة الفخمة للآية */}
+{activeModal === 'imageCard' && (
+  <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setActiveModal('menu')}>
+    <div onClick={e => e.stopPropagation()} className="flex flex-col items-center gap-4 w-full max-w-sm">
+      <div ref={cardRef} className="bg-gradient-to-b from-[#121f1a] to-[#0b1411] border-2 border-amber-500/50 p-6 rounded-3xl text-center shadow-2xl relative w-full">
+        <div className="text-amber-400 font-bold text-xs mb-3 border-b border-amber-500/20 pb-2">سورة {meta.surahName} - آية ({toArabicNumber(selectedAyahKey.split(':')[1])})</div>
+        <div className="text-base leading-loose text-amber-100 font-serif my-4 px-2">" {selectedAyahText} "</div>
+        <div className="text-[10px] text-amber-500/70 mt-4 border-t border-amber-500/20 pt-2 font-bold">تطبيق أثر - المصحف الشريف</div>
+      </div>
+      <button onClick={generateAyahImage} disabled={isGeneratingImage} className="w-full py-3 bg-amber-600 text-white font-bold rounded-xl text-xs shadow-lg">
+        {isGeneratingImage ? "جاري التوليد..." : "📥 تحميل الصورة"}
+      </button>
+    </div>
+  </div>
+)}
+
+{/* مودال التفسير الميسر مع أسهم التنقل < > */}
+{activeModal === 'tafsir' && (
+  <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setActiveModal('menu')}>
+    <div onClick={e => e.stopPropagation()} className="bg-[#121f1a] border border-amber-500/40 w-full max-w-lg rounded-2xl p-5 text-amber-100 max-h-[80vh] flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between border-b border-amber-500/20 pb-2 mb-3">
+          <h3 className="text-sm font-bold text-amber-300">التفسير الميسر للآية ({toArabicNumber(selectedAyahKey?.split(':')[1])})</h3>
+          <button onClick={() => setActiveModal('menu')} className="text-xs bg-amber-500/20 px-2 py-0.5 rounded-full text-amber-300">✕</button>
+        </div>
+        <p className="text-xs leading-relaxed text-emerald-100/90 bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/40 mb-3">
+          {selectedAyahText}
+        </p>
+        <div className="text-xs leading-relaxed text-amber-100/80 bg-amber-950/20 p-3 rounded-xl border border-amber-800/30 min-h-[100px]">
+          {tafsirLoading ? "جاري جلب التفسير..." : tafsirText}
+        </div>
+      </div>
+
+      {/* أسهم التنقل بين الآيات */}
+      <div className="flex items-center justify-between pt-4 border-t border-amber-500/20 mt-3">
+        <button onClick={() => navigateAyah('prev')} className="px-4 py-2 bg-emerald-900/50 border border-emerald-700/40 rounded-xl text-xs font-bold text-amber-200">
+          ▶️ الآية السابقة
+        </button>
+        <button onClick={() => navigateAyah('next')} className="px-4 py-2 bg-emerald-900/50 border border-emerald-700/40 rounded-xl text-xs font-bold text-amber-200">
+          الآية التالية ◀️
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* مودال مكرر التلاوة وتحديد المدى */}
+{activeModal === 'repeater' && (
+  <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setActiveModal(null)}>
+    <div onClick={e => e.stopPropagation()} className="bg-[#121f1a] border border-amber-500/40 w-full max-w-xs rounded-2xl p-5 text-amber-100 text-center">
+      <h3 className="text-sm font-bold text-amber-300 mb-3">🔁 تحديد مدى والتكرار</h3>
+      <div className="flex flex-col gap-3 text-xs mb-4 text-right">
+        <div>
+          <label className="block opacity-70 mb-1">آية البداية:</label>
+          <input type="text" value={startAyahKey || selectedAyahKey || "1:1"} onChange={e => setStartAyahKey(e.target.value)} className="w-full p-2 bg-emerald-950/60 border border-emerald-700/40 rounded-lg text-center text-amber-300" />
+        </div>
+        <div>
+          <label className="block opacity-70 mb-1">آية النهاية:</label>
+          <input type="text" value={endAyahKey || selectedAyahKey || "1:7"} onChange={e => setEndAyahKey(e.target.value)} className="w-full p-2 bg-emerald-950/60 border border-emerald-700/40 rounded-lg text-center text-amber-300" />
+        </div>
+        <div>
+          <label className="block opacity-70 mb-1">عدد مرات تكرار كل آية:</label>
+          <input type="number" min="1" max="10" value={repeatCount} onChange={e => setRepeatCount(Number(e.target.value))} className="w-full p-2 bg-emerald-950/60 border border-emerald-700/40 rounded-lg text-center text-amber-300" />
+        </div>
+      </div>
+      <button onClick={() => { alert(`تم ضبط التكرار لـ ${repeatCount} مرات من ${startAyahKey} إلى ${endAyahKey}`); setActiveModal(null); }} className="w-full py-2 bg-amber-600 text-white font-bold rounded-xl text-xs">
+        بدء التكرار
+      </button>
+    </div>
+  </div>
+)}
 
           {/* نافذة التفسير */}
           {activeModal === 'tafsir' && (
