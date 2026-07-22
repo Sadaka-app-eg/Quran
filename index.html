@@ -10,7 +10,8 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,25 +34,17 @@
       margin: 0;
     }
 
-    /* 6) أنيميشن انتقال الصفحة الناعم والأداء العالي */
     .page-fade {
-      animation: fade 0.25s ease-out;
+      animation: fade 0.2s ease-out;
       will-change: transform;
       backface-visibility: hidden;
     }
 
     @keyframes fade {
-      from {
-        opacity: 0;
-        transform: translateX(15px);
-      }
-      to {
-        opacity: 1;
-        transform: none;
-      }
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
     }
 
-    /* تنسيق أسطر المصحف الـ 15 */
     .qcf-page-container {
       display: flex;
       flex-direction: column;
@@ -66,18 +59,16 @@
       align-items: center;
       flex-wrap: nowrap;
       height: 100%;
-      max-height: calc((100vh - 160px) / 15);
       letter-spacing: 0;
       word-spacing: 0;
       overflow: hidden;
     }
 
-    /* 7 & 8) تنسيق الكلمة وظلها والاستجابة عند الضغط */
-.quran-word {
-      font-size: clamp(18px, 4.2vw, 26px);
+    .quran-word {
+      font-size: clamp(18px, 4.3vw, 27px);
       line-height: 1;
       padding-inline: 0px;
-      transition: 0.18s;
+      transition: 0.15s;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
@@ -85,10 +76,9 @@
     }
 
     .quran-word:active {
-      transform: scale(0.95);
+      transform: scale(0.92);
     }
 
-    /* 5) تحديد الآية بنمط تدرج ذهبي احترافي */
     .quran-word-selected {
       background: linear-gradient(90deg, #b8862f44, #d4af3744);
       box-shadow: 0 0 12px #d4af3740;
@@ -96,54 +86,37 @@
       color: #fce788 !important;
     }
 
-    /* دائرة رقم الآية العثماني */
-    .ayah-number {
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      width: 22px;
-      height: 22px;
-      margin-inline: 4px;
-      border: 1px solid #b9953c;
-      border-radius: 50%;
-      font-size: 11px;
-      color: #b9953c;
-      font-family: 'Cairo', sans-serif;
-      font-weight: bold;
+    .mushaf-frame-wahi {
+      width: 100%;
+      max-width: 540px;
+      height: 100vh;
+      position: relative;
+      border: 1px solid rgba(184, 134, 47, 0.25);
+      box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 16px 8px 16px;
+      background-color: #0b1411;
     }
 
-   .mushaf-frame-wahi {
-  width: 100%;
-  max-width: 520px;
-  height: 100vh;
-  position: relative;
-  border: 1px solid rgba(184, 134, 47, 0.3);
-  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.6);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 12px 16px 8px 16px;
-  background-color: #0b1411;
-}
+    .wahi-page-badge {
+      background: linear-gradient(135deg, #12281e, #0a1712);
+      border: 1px solid #3d5e4a;
+      box-shadow: inset 0 0 5px rgba(212, 175, 55, 0.3);
+      border-radius: 12px;
+      padding: 2px 14px;
+      color: #e2d1a4;
+      font-family: 'Cairo', sans-serif;
+      font-weight: bold;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-/* شارة رقم الصفحة المنسقة بنفس شكل وحي */
-.wahi-page-badge {
-  background: linear-gradient(135deg, #12281e, #0a1712);
-  border: 1px solid #3d5e4a;
-  box-shadow: inset 0 0 5px rgba(212, 175, 55, 0.3);
-  border-radius: 12px;
-  padding: 2px 16px;
-  color: #e2d1a4;
-  font-family: 'Cairo', sans-serif;
-  font-weight: bold;
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-    /* أنيميشن الـ Bottom Sheet */
     .bottom-sheet-anim {
-      animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     @keyframes slideUp {
@@ -156,7 +129,6 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    
     const { useState, useEffect, useRef, useCallback } = React;
     const TOTAL_PAGES = 604;
 
@@ -165,47 +137,40 @@
       return String(n).split("").map(d => numeralsAr[+d] ?? d).join("");
     }
 
+    const JUZ_NAMES = [
+      "", "الجزء الأول", "الجزء الثاني", "الجزء الثالث", "الجزء الرابع", "الجزء الخامس",
+      "الجزء السادس", "الجزء السابع", "الجزء الثامن", "الجزء التاسع", "الجزء العاشر",
+      "الجزء الحادي عشر", "الجزء الثاني عشر", "الجزء الثالث عشر", "الجزء الرابع عشر", "الجزء الخامس عشر",
+      "الجزء السادس عشر", "الجزء السابع عشر", "الجزء الثامن عشر", "الجزء التاسع عشر", "الجزء العشرون",
+      "الجزء الحادي والعشرون", "الجزء الثاني والعشرون", "الجزء الثالث والعشرون", "الجزء الرابع والعشرون", "الجزء الخامس والعشرون",
+      "الجزء السادس والعشرون", "الجزء السابع والعشرون", "الجزء الثامن والعشرون", "الجزء التاسع والعشرون", "الجزء الثلاثون"
+    ];
 
-// أسماء الأجزاء بالكلمات العربية (بدون تشكيل)
-const JUZ_NAMES = [
-  "", "الجزء الأول", "الجزء الثاني", "الجزء الثالث", "الجزء الرابع", "الجزء الخامس",
-  "الجزء السادس", "الجزء السابع", "الجزء الثامن", "الجزء التاسع", "الجزء العاشر",
-  "الجزء الحادي عشر", "الجزء الثاني عشر", "الجزء الثالث عشر", "الجزء الرابع عشر", "الجزء الخامس عشر",
-  "الجزء السادس عشر", "الجزء السابع عشر", "الجزء الثامن عشر", "الجزء التاسع عشر", "الجزء العشرون",
-  "الجزء الحادي والعشرون", "الجزء الثاني والعشرون", "الجزء الثالث والعشرون", "الجزء الرابع والعشرون", "الجزء الخامس والعشرون",
-  "الجزء السادس والعشرون", "الجزء السابع والعشرون", "الجزء الثامن والعشرون", "الجزء التاسع والعشرون", "الجزء الثلاثون"
-];
+    function getJuzText(jNum) {
+      return JUZ_NAMES[jNum] || `الجزء ${toArabicNumber(jNum)}`;
+    }
 
-function getJuzText(jNum) {
-  return JUZ_NAMES[jNum] || `الجزء ${toArabicNumber(jNum)}`;
-}
+    // مكون إطار رأس السورة الفاخر (مرة واحدة فقط بدون تكرار)
+    function SurahBanner({ surahName }) {
+      return (
+        <div className="w-full my-2 flex items-center justify-center relative">
+          <div className="w-full max-w-[420px] h-[46px] bg-[#12241b] border-2 border-[#b8862f]/60 rounded-xl flex items-center justify-between px-4 shadow-lg relative overflow-hidden">
+            <div className="w-5 h-5 border border-[#b8862f]/40 rotate-45 bg-[#0b1411] flex items-center justify-center text-[8px] text-[#d4af37]">❖</div>
+            <span className="text-amber-200 font-bold text-base tracking-wide font-serif z-10">
+              سُورَةُ {surahName}
+            </span>
+            <div className="w-5 h-5 border border-[#b8862f]/40 rotate-45 bg-[#0b1411] flex items-center justify-center text-[8px] text-[#d4af37]">❖</div>
+          </div>
+        </div>
+      );
+    }
 
-// مكون برقع/إطار رأس السورة الفاخر
-function SurahBanner({ surahName }) {
-  return (
-    <div className="w-full my-3 flex items-center justify-center relative">
-      <div className="w-full max-w-[420px] h-[48px] bg-[#12241b] border-2 border-[#b8862f]/60 rounded-xl flex items-center justify-between px-4 shadow-lg relative overflow-hidden">
-        <div className="w-6 h-6 border border-[#b8862f]/40 rotate-45 bg-[#0b1411] flex items-center justify-center text-[8px] text-[#d4af37]">❖</div>
-        <span className="text-amber-200 font-bold text-lg tracking-wide font-serif z-10">
-          سُورَةُ {surahName}
-        </span>
-        <div className="w-6 h-6 border border-[#b8862f]/40 rotate-45 bg-[#0b1411] flex items-center justify-center text-[8px] text-[#d4af37]">❖</div>
-      </div>
-    </div>
-  );
-}
-
-
-
-    
     function App() {
-      const [showControls, setShowControls] = useState(false); // افتراضياً الشاشة كاملة بدونهما
-   
-      
+      const [showControls, setShowControls] = useState(false);
       const [page, setPage] = useState(1);
       const [night, setNight] = useState(true);
       const [words, setWords] = useState([]);
-      const [groupedLines, setGroupedLines] = useState({}); // 2) تحسين الأداء عبر تجميع الكلمات
+      const [groupedLines, setGroupedLines] = useState({});
       const [selectedAyahKey, setSelectedAyahKey] = useState(null);
       const [selectedAyahText, setSelectedAyahText] = useState("");
       const [loading, setLoading] = useState(true);
@@ -213,40 +178,34 @@ function SurahBanner({ surahName }) {
       const [meta, setMeta] = useState({ surahName: "", juz: 1, hizb: 1 });
       const [activeModal, setActiveModal] = useState(null);
 
+      const [tafsirText, setTafsirText] = useState("");
+      const [tafsirLoading, setTafsirLoading] = useState(false);
+      const [repeatCount, setRepeatCount] = useState(1);
+      const [startAyahKey, setStartAyahKey] = useState(null);
+      const [endAyahKey, setEndAyahKey] = useState(null);
+      const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+      const cardRef = useRef(null);
 
-const handlePageChange = (newPage) => {
-  if (newPage >= 1 && newPage <= TOTAL_PAGES) {
-    setPage(newPage);
-  }
-};
-
-      
-const [tafsirText, setTafsirText] = useState("");
-const [tafsirLoading, setTafsirLoading] = useState(false);
-const [repeatCount, setRepeatCount] = useState(1);
-const [startAyahKey, setStartAyahKey] = useState(null);
-const [endAyahKey, setEndAyahKey] = useState(null);
-const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-const cardRef = useRef(null);
-
-      
       const touchStartX = useRef(0);
       const touchEndX = useRef(0);
+      const longPressTimer = useRef(null);
 
-      // استرجاع آخر صفحة عند فتح التطبيق
+      const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= TOTAL_PAGES) {
+          setPage(newPage);
+        }
+      };
+
       useEffect(() => {
         const last = localStorage.getItem("last_page");
-        if (last) {
-          setPage(Number(last));
-        }
+        if (last) setPage(Number(last));
       }, []);
 
-      // حفظ الصفحة الحالية
       useEffect(() => {
         localStorage.setItem("last_page", page);
       }, [page]);
 
-      // تحميل خط الصفحة
+      // تحميل الخط العثماني بدقة لمنع تاكل الهمزات
       const loadPageFont = useCallback(async (pageNum) => {
         const fontName = `QCF_V2_P${pageNum}`;
         const fontUrl = `https://verses.quran.foundation/fonts/quran/hafs/v2/woff2/p${pageNum}.woff2`;
@@ -263,13 +222,11 @@ const cardRef = useRef(null);
         }
       }, []);
 
-      // جلب بيانات الصفحة بذكاء
       const fetchPageData = useCallback(async (p) => {
         setLoading(true);
         setFontLoaded(false);
         setSelectedAyahKey(null);
 
-        // 4) التحقق من وجود الصفحة في الـ Cache أولاً
         const cache = localStorage.getItem("page_" + p);
         if (cache) {
           try {
@@ -278,22 +235,19 @@ const cardRef = useRef(null);
             setFontLoaded(true);
             setWords(data.words);
             
-            // إعادة تجميع الأسطر للأداء
             const grouped = {};
             data.words.forEach(w => {
               (grouped[w.lineNumber] ??= []).push(w);
             });
             setGroupedLines(grouped);
-
             setMeta(data.meta);
             setLoading(false);
 
-            // تحميل الصفحات المحيطة مسبقًا
             if (p + 1 <= TOTAL_PAGES) loadPageFont(p + 1);
             if (p - 1 >= 1) loadPageFont(p - 1);
             return;
           } catch (e) {
-            console.error("خطأ في قراءة الـ Cache:", e);
+            console.error("خطأ في قراءة الكاش:", e);
           }
         }
 
@@ -301,7 +255,6 @@ const cardRef = useRef(null);
           await loadPageFont(p);
           setFontLoaded(true);
 
-          // 1) جلب قائمة السور لمطابقة اسم السورة الصحيح
           const surahRes = await fetch("https://api.quran.com/api/v4/chapters");
           const surahJson = await surahRes.json();
 
@@ -331,7 +284,6 @@ const cardRef = useRef(null);
 
           setWords(pageWords);
 
-          // 2) تجميع الكلمات حسب السطر للأداء
           const grouped = {};
           pageWords.forEach(w => {
             (grouped[w.lineNumber] ??= []).push(w);
@@ -348,24 +300,13 @@ const cardRef = useRef(null);
 
           setMeta(metaData);
 
-          // 4) حفظ البيانات في الـ Cache
           localStorage.setItem(
             "page_" + p,
-            JSON.stringify({
-              words: pageWords,
-              meta: metaData
-            })
+            JSON.stringify({ words: pageWords, meta: metaData })
           );
 
-          // 3) تحميل الصفحة القادمة والسابقة مسبقًا
-          const next = p + 1;
-          if (next <= TOTAL_PAGES) {
-            loadPageFont(next);
-          }
-          const prev = p - 1;
-          if (prev >= 1) {
-            loadPageFont(prev);
-          }
+          if (p + 1 <= TOTAL_PAGES) loadPageFont(p + 1);
+          if (p - 1 >= 1) loadPageFont(p - 1);
 
         } catch (e) {
           console.error("فشل جلب بيانات الصفحة:", e);
@@ -378,103 +319,86 @@ const cardRef = useRef(null);
         fetchPageData(page);
       }, [page, fetchPageData]);
 
-      // أحداث اللمس والسحب
-      const handleTouchStart = (e) => { touchStartX.current = e.targetTouches[0].clientX; };
+      // إصلاح السحب السلس من اليمين للشمال للقلب بين الصفحات
+      const handleTouchStart = (e) => { 
+        touchStartX.current = e.targetTouches[0].clientX; 
+        touchEndX.current = e.targetTouches[0].clientX;
+      };
       const handleTouchMove = (e) => { touchEndX.current = e.targetTouches[0].clientX; };
-const handleTouchEnd = () => {
-  const dist = touchStartX.current - touchEndX.current;
-  if (Math.abs(dist) > 40 && touchEndX.current !== 0) {
-    // السحب من اليمين للشمال (dist > 0) يقلب للصفحة التالية في المصحف
-    if (dist > 0 && page < TOTAL_PAGES) handlePageChange(page + 1);
-    // السحب من الشمال لليمين (dist < 0) يرجع للصفحة السابقة
-    if (dist < 0 && page > 1) handlePageChange(page - 1);
-  }
-  touchStartX.current = 0;
-  touchEndX.current = 0;
-};
+      const handleTouchEnd = () => {
+        const dist = touchStartX.current - touchEndX.current;
+        if (Math.abs(dist) > 35) {
+          // السحب من اليسار لليمين (dist < 0) يقلب للصفحة التالية في اتجاه RTL المصحف
+          if (dist < -35 && page < TOTAL_PAGES) {
+            handlePageChange(page + 1);
+          }
+          // السحب من اليمين لليسار (dist > 0) يرجع للصفحة السابقة
+          else if (dist > 35 && page > 1) {
+            handlePageChange(page - 1);
+          }
+        }
+        touchStartX.current = 0;
+        touchEndX.current = 0;
+      };
 
-
-const longPressTimer = useRef(null);
-
-const handleWordTouchStart = (word, e) => {
-  e.stopPropagation();
-  longPressTimer.current = setTimeout(() => {
-    setSelectedAyahKey(word.ayahKey);
-    const fullText = words.filter(w => w.ayahKey === word.ayahKey).map(w => w.text).join(" ");
-    setSelectedAyahText(fullText);
-    setActiveModal('menu');
-    if (navigator.vibrate) navigator.vibrate(40); // اهتزاز بسيط للتأكيد
-  }, 500); // 500 مللي ثانية للضغطة المطولة
-};
-
-const handleWordTouchEnd = () => {
-  if (longPressTimer.current) {
-    clearTimeout(longPressTimer.current);
-  }
-};
-
-
-      
-      const handleWordClick = (word) => {
-        if (selectedAyahKey === word.ayahKey) {
-          setSelectedAyahKey(null);
-          setActiveModal(null);
-        } else {
+      // الضغطة المطولة للخيارات والضغطة البسيطة للشاشة الكاملة
+      const handleWordTouchStart = (word, e) => {
+        e.stopPropagation();
+        longPressTimer.current = setTimeout(() => {
           setSelectedAyahKey(word.ayahKey);
           const fullText = words.filter(w => w.ayahKey === word.ayahKey).map(w => w.text).join(" ");
           setSelectedAyahText(fullText);
           setActiveModal('menu');
+          if (navigator.vibrate) navigator.vibrate(40);
+        }, 450);
+      };
+
+      const handleWordTouchEnd = () => {
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+      };
+
+      const fetchTafsir = useCallback(async (key) => {
+        if (!key) return;
+        setTafsirLoading(true);
+        try {
+          const res = await fetch(`https://api.quran.com/api/v4/tafsirs/169/by_ayah/${key}`);
+          const json = await res.json();
+          setTafsirText(json.tafsir?.text?.replace(/<[^>]+>/g, '') || "التفسير غير متوفر حالياً.");
+        } catch (e) {
+          setTafsirText("حدث خطأ أثناء جلب التفسير.");
+        } finally {
+          setTafsirLoading(false);
+        }
+      }, []);
+
+      const navigateAyah = (dir) => {
+        if (!selectedAyahKey) return;
+        const [s, a] = selectedAyahKey.split(':').map(Number);
+        const nextA = dir === 'next' ? a + 1 : Math.max(1, a - 1);
+        const newKey = `${s}:${nextA}`;
+        setSelectedAyahKey(newKey);
+        const txt = words.filter(w => w.ayahKey === newKey).map(w => w.text).join(" ");
+        setSelectedAyahText(txt || "نص الآية");
+        fetchTafsir(newKey);
+      };
+
+      const generateAyahImage = async () => {
+        if (!cardRef.current) return;
+        setIsGeneratingImage(true);
+        try {
+          const canvas = await html2canvas(cardRef.current, { backgroundColor: '#0b1411', scale: 2 });
+          const image = canvas.toDataURL("image/png");
+          const link = document.createElement('a');
+          link.href = image;
+          link.download = `Ayah_${selectedAyahKey}.png`;
+          link.click();
+        } catch (e) {
+          alert("حدث خطأ أثناء تحميل الصورة.");
+        } finally {
+          setIsGeneratingImage(false);
         }
       };
 
-// جلب التفسير الميسر
-const fetchTafsir = useCallback(async (key) => {
-  if (!key) return;
-  setTafsirLoading(true);
-  try {
-    const res = await fetch(`https://api.quran.com/api/v4/tafsirs/169/by_ayah/${key}`);
-    const json = await res.json();
-    setTafsirText(json.tafsir?.text?.replace(/<[^>]+>/g, '') || "التفسير غير متوفر حالياً.");
-  } catch (e) {
-    setTafsirText("حدث خطأ أثناء جلب التفسير.");
-  } finally {
-    setTafsirLoading(false);
-  }
-}, []);
-
-// تنقل التفسير للآية التالية أو السابقة
-const navigateAyah = (dir) => {
-  if (!selectedAyahKey) return;
-  const [s, a] = selectedAyahKey.split(':').map(Number);
-  const nextA = dir === 'next' ? a + 1 : Math.max(1, a - 1);
-  const newKey = `${s}:${nextA}`;
-  setSelectedAyahKey(newKey);
-  const txt = words.filter(w => w.ayahKey === newKey).map(w => w.text).join(" ");
-  setSelectedAyahText(txt || "نص الآية");
-  fetchTafsir(newKey);
-};
-
-// توليد صورة الآية الفخمة
-const generateAyahImage = async () => {
-  if (!cardRef.current) return;
-  setIsGeneratingImage(true);
-  try {
-    const canvas = await html2canvas(cardRef.current, { backgroundColor: '#0b1411', scale: 2 });
-    const image = canvas.toDataURL("image/png");
-    const link = document.createElement('a');
-    link.href = image;
-    link.download = `Ayah_${selectedAyahKey}.png`;
-    link.click();
-  } catch (e) {
-    alert("حدث خطأ أثناء تحميل الصورة.");
-  } finally {
-    setIsGeneratingImage(false);
-  }
-};
-
-
-      
-      // 10) دالة المشاركة الاحترافية مع الـ Fallback
       const handleShare = () => {
         if (navigator.share) {
           navigator.share({
@@ -492,25 +416,25 @@ const generateAyahImage = async () => {
       return (
         <div className={`flex flex-col h-screen w-full ${night ? 'bg-[#0b1411] text-[#E9E0CC]' : 'bg-[#EFE7D3] text-[#241C12]'} transition-colors duration-300`}>
           
-    {/* الهيدر العلوي المشروط */}
-{showControls && (
-  <header className="w-full py-2.5 px-4 flex items-center justify-between bg-[#123328] text-white shadow-xl z-40 transition-all duration-300">
-    <div className="flex items-center gap-3 text-base">
-      <button onClick={() => setNight(!night)} title="الوضع">{night ? "🌙" : "☀️"}</button>
-      <button onClick={() => setActiveModal('repeater')} title="تكرار الآيات">🔁</button>
-      <button onClick={() => alert(`تم حفظ العلامة عند الصفحة ${page}`)} title="علامة مرجعية">🔖</button>
-    </div>
-    <div className="text-center">
-      <div className="text-sm font-bold text-amber-300">{meta.surahName}</div>
-      <div className="text-[10px] opacity-80 text-emerald-300">الجزء {toArabicNumber(meta.juz)}</div>
-    </div>
-    <div className="text-xs font-bold text-amber-300 bg-emerald-950/70 px-2.5 py-1 rounded-md border border-amber-500/20">
-      {toArabicNumber(page)} / {toArabicNumber(TOTAL_PAGES)}
-    </div>
-  </header>
-)}
+          {/* الهيدر العلوي عند النقر */}
+          {showControls && (
+            <header className="w-full py-2.5 px-4 flex items-center justify-between bg-[#123328] text-white shadow-xl z-40 transition-all duration-300">
+              <div className="flex items-center gap-3 text-base">
+                <button onClick={() => setNight(!night)} title="الوضع">{night ? "🌙" : "☀️"}</button>
+                <button onClick={() => setActiveModal('repeater')} title="تكرار الآيات">🔁</button>
+                <button onClick={() => alert(`تم حفظ العلامة عند الصفحة ${page}`)} title="علامة مرجعية">🔖</button>
+              </div>
+              <div className="text-center">
+                <div className="text-sm font-bold text-amber-300">{meta.surahName}</div>
+                <div className="text-[10px] opacity-80 text-emerald-300">{getJuzText(meta.juz)}</div>
+              </div>
+              <div className="text-xs font-bold text-amber-300 bg-emerald-950/70 px-2.5 py-1 rounded-md border border-amber-500/20">
+                {toArabicNumber(page)} / {toArabicNumber(TOTAL_PAGES)}
+              </div>
+            </header>
+          )}
 
-{/* منطقة المصحف والشاشة الكاملة */}
+          {/* منطقة المصحف كاملة الشاشة */}
           <main 
             onClick={() => setShowControls(prev => !prev)}
             className="w-full h-screen flex items-center justify-center p-0 overflow-hidden relative cursor-pointer bg-[#0b1411]"
@@ -520,74 +444,69 @@ const generateAyahImage = async () => {
           >
             <div className="mushaf-frame-wahi relative flex flex-col justify-between h-full w-full max-w-[540px] px-4 py-3">
               
-              {/* 1. الهيدر الثابت: الجزء فوق ع اليمين، السورة فوق ع الشمال بالتشكيل */}
+              {/* 1. الهيدر الثابت: الجزء يمين والسورة شمال بالتشكيل */}
               <div className="flex items-center justify-between text-xs font-bold border-b border-amber-500/10 pb-1 z-10">
                 <span className="text-emerald-300/90 font-sans">{getJuzText(meta.juz)}</span>
                 <span className="text-amber-300 text-sm font-serif">{meta.surahName}</span>
               </div>
 
-              {/* 2. جسم الصفحة والاستثناء لصفحتي الفاتحة والبقرة */}
-              <div className={`flex-1 flex flex-col justify-center ${page <= 2 ? 'my-auto py-6' : 'py-1 justify-between'}`}>
+              {/* 2. جسم الصفحة بدون أي تكرار لبرقع السورة */}
+              <div className={`flex-1 flex flex-col justify-center ${page <= 2 ? 'my-auto py-4' : 'py-1 justify-between'}`}>
                 {(loading || !fontLoaded) ? (
                   <div className="my-auto text-center text-amber-400 font-semibold text-sm animate-pulse flex flex-col items-center gap-2">
                     <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
                     <span>جاري تحميل الصفحة بالرسم العثماني...</span>
                   </div>
                 ) : (
-                  <div className={`qcf-page-container page-fade ${page <= 2 ? 'flex flex-col items-center justify-center gap-3' : ''}`}>
-                    
-                    {/* إظهار برقع السورة الفاخر في بداية صفحتي الفاتحة والبقرة */}
-                    {page === 1 && <SurahBanner surahName="الفَاتِحَةِ" />}
-                    {page === 2 && <SurahBanner surahName="البَقَرَةِ" />}
+                  <div className={`qcf-page-container page-fade ${page <= 2 ? 'flex flex-col items-center justify-center gap-2' : ''}`}>
+                    {pageLines.map((line) => {
+                      const lineWords = groupedLines[line] || [];
+                      
+                      // الكشف عن الآية رقم 1 في أي سورة
+                      const firstWordOfAyahOne = lineWords.find(w => w.ayahKey && w.ayahKey.endsWith(':1'));
+                      const isSurahStart = !!firstWordOfAyahOne;
 
-{pageLines.map((line) => {
-  const lineWords = groupedLines[line] || [];
-  
-  // فحص هل هذا السطر يحتوي على الآية رقم 1 لأي سورة في القرآن
-  const firstWordOfAyahOne = lineWords.find(w => w.ayahKey && w.ayahKey.endsWith(':1'));
-  const isSurahStart = !!firstWordOfAyahOne;
+                      return (
+                        <React.Fragment key={line}>
+                          {/* رسم رأس السورة مرة واحدة فقط بدون تكرار */}
+                          {isSurahStart && (
+                            <SurahBanner surahName={meta.surahName} />
+                          )}
 
-  return (
-    <React.Fragment key={line}>
-      {/* 1) برقع السورة الفاخر: يظهر تلقائياً لأي سورة من الـ 114 سورة عند بدايتها */}
-      {isSurahStart && (
-        <SurahBanner surahName={meta.surahName} />
-      )}
+                          {/* رسم البسملة */}
+                          {isSurahStart && !firstWordOfAyahOne.ayahKey.startsWith('1:') && !firstWordOfAyahOne.ayahKey.startsWith('9:') && (
+                            <div className="w-full text-center py-1 my-0.5 text-amber-300 font-bold text-xs tracking-widest">
+                              بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                            </div>
+                          )}
 
-      {/* 2) البسملة: تظهر لجميع السور ما عدا الفاتحة (1) والتوبة (9) */}
-      {isSurahStart && !firstWordOfAyahOne.ayahKey.startsWith('1:') && !firstWordOfAyahOne.ayahKey.startsWith('9:') && (
-        <div className="w-full text-center py-1 my-0.5 text-amber-300 font-bold text-xs tracking-widest">
-          بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-        </div>
-      )}
-
-      {/* 3) أسطر القرآن الكريم */}
-      <div className={`quran-line ${page <= 2 ? 'justify-center gap-1.5' : ''}`}>
-        {lineWords.map((w) => {
-          const isSelected = selectedAyahKey === w.ayahKey;
-          return (
-            <span
-              key={w.id}
-              onTouchStart={(e) => handleWordTouchStart(w, e)}
-              onTouchEnd={handleWordTouchEnd}
-              onMouseDown={(e) => handleWordTouchStart(w, e)}
-              onMouseUp={handleWordTouchEnd}
-              className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
-              style={{ fontFamily: `QCF_V2_P${page}` }}
-            >
-              {w.code}
-            </span>
-          );
-        })}
-      </div>
-    </React.Fragment>
-  );
-})}
+                          {/* أسطر الكلمات بالخط العثماني الكامل بدون تاكل */}
+                          <div className={`quran-line ${page <= 2 ? 'justify-center gap-1.5' : ''}`}>
+                            {lineWords.map((w) => {
+                              const isSelected = selectedAyahKey === w.ayahKey;
+                              return (
+                                <span
+                                  key={w.id}
+                                  onTouchStart={(e) => handleWordTouchStart(w, e)}
+                                  onTouchEnd={handleWordTouchEnd}
+                                  onMouseDown={(e) => handleWordTouchStart(w, e)}
+                                  onMouseUp={handleWordTouchEnd}
+                                  className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
+                                  style={{ fontFamily: `QCF_V2_P${page}` }}
+                                >
+                                  {w.code}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
-              {/* 3. الفوتر: فردي تحت ع اليمين / زوجي تحت ع الشمال */}
+              {/* 3. الفوتر: فردي يمين / زوجي شمال */}
               <div className={`w-full flex pt-1 pb-1 z-10 ${page % 2 !== 0 ? 'justify-end' : 'justify-start'}`}>
                 <div className="wahi-page-badge flex items-center gap-1">
                   <span className="text-xs">❖</span>
@@ -598,11 +517,9 @@ const generateAyahImage = async () => {
             </div>
           </main>
 
-          
-{/* الشريط السفلي العائم */}
+          {/* الشريط السفلي العائم عند الضغط */}
           {showControls && (
             <footer className="fixed bottom-0 inset-x-0 bg-[#123328] border-t border-emerald-700/50 p-3 flex flex-col gap-2 z-40 transition-all duration-300">
-              {/* شريط تقدم الصفحة */}
               <div className="flex items-center gap-2 px-2">
                 <span className="text-[10px] text-amber-200 font-bold">{toArabicNumber(1)}</span>
                 <input 
@@ -616,9 +533,7 @@ const generateAyahImage = async () => {
                 <span className="text-[10px] text-amber-200 font-bold">{toArabicNumber(TOTAL_PAGES)}</span>
               </div>
 
-              {/* أزرار التحكم والتشغيل والبحث */}
               <div className="flex items-center justify-around text-amber-200 text-xl pt-1">
-                <button onClick={() => setShowJump(true)} title="بحث/انتقال">🔍</button>
                 <button onClick={() => setActiveModal('repeater')} title="تكرار الآيات">🔁</button>
                 <button 
                   onClick={() => {
@@ -637,11 +552,7 @@ const generateAyahImage = async () => {
             </footer>
           )}
 
-
-
-          
-         
-{/* قائمة خيارات الآية */}
+          {/* قائمة خيارات الآية عند الضغط المطول */}
           {selectedAyahKey && activeModal === 'menu' && (
             <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end justify-center p-0 sm:p-4" onClick={() => { setSelectedAyahKey(null); setActiveModal(null); }}>
               <div onClick={(e) => e.stopPropagation()} className={`bottom-sheet-anim w-full sm:max-w-md ${night ? 'bg-[#121f1a] text-amber-100 border-amber-500/30' : 'bg-[#FFFDF7] text-[#241C12] border-[#b8862f]'} border-t sm:border rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl`}>
@@ -716,7 +627,6 @@ const generateAyahImage = async () => {
                   </div>
                 </div>
 
-                {/* أسهم التنقل بين الآيات */}
                 <div className="flex items-center justify-between pt-4 border-t border-amber-500/20 mt-3">
                   <button onClick={() => navigateAyah('prev')} className="px-4 py-2 bg-emerald-900/50 border border-emerald-700/40 rounded-xl text-xs font-bold text-amber-200">
                     ▶️ الآية السابقة
