@@ -540,46 +540,49 @@ const generateAyahImage = async () => {
                     {page === 1 && <SurahBanner surahName="الفَاتِحَةِ" />}
                     {page === 2 && <SurahBanner surahName="البَقَرَةِ" />}
 
-                    {pageLines.map((line) => {
-                      const lineWords = groupedLines[line] || [];
-                      const isSurahStart = lineWords.some(w => w.ayahKey && w.ayahKey.endsWith(':1') && !w.ayahKey.startsWith('1:') && !w.ayahKey.startsWith('9:'));
-                      const isFirstWordOfSurah = lineWords.length > 0 && lineWords[0].ayahKey && lineWords[0].ayahKey.endsWith(':1');
+{pageLines.map((line) => {
+  const lineWords = groupedLines[line] || [];
+  
+  // فحص هل هذا السطر يحتوي على الآية رقم 1 لأي سورة في القرآن
+  const firstWordOfAyahOne = lineWords.find(w => w.ayahKey && w.ayahKey.endsWith(':1'));
+  const isSurahStart = !!firstWordOfAyahOne;
 
-                      return (
-                        <React.Fragment key={line}>
-                          {/* إطار برقع السورة باقي الصفحات عند بداية كل سورة جديدة */}
-                          {isSurahStart && isFirstWordOfSurah && page > 2 && (
-                            <SurahBanner surahName={meta.surahName} />
-                          )}
+  return (
+    <React.Fragment key={line}>
+      {/* 1) برقع السورة الفاخر: يظهر تلقائياً لأي سورة من الـ 114 سورة عند بدايتها */}
+      {isSurahStart && (
+        <SurahBanner surahName={meta.surahName} />
+      )}
 
-                          {/* البسملة */}
-                          {isSurahStart && isFirstWordOfSurah && page > 1 && (
-                            <div className="w-full text-center py-1 my-0.5 text-amber-300 font-bold text-xs tracking-widest">
-                              بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-                            </div>
-                          )}
+      {/* 2) البسملة: تظهر لجميع السور ما عدا الفاتحة (1) والتوبة (9) */}
+      {isSurahStart && !firstWordOfAyahOne.ayahKey.startsWith('1:') && !firstWordOfAyahOne.ayahKey.startsWith('9:') && (
+        <div className="w-full text-center py-1 my-0.5 text-amber-300 font-bold text-xs tracking-widest">
+          بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+        </div>
+      )}
 
-                          <div className={`quran-line ${page <= 2 ? 'justify-center gap-1.5' : ''}`}>
-                            {lineWords.map((w) => {
-                              const isSelected = selectedAyahKey === w.ayahKey;
-                              return (
-                                <span
-                                  key={w.id}
-                                  onTouchStart={(e) => handleWordTouchStart(w, e)}
-                                  onTouchEnd={handleWordTouchEnd}
-                                  onMouseDown={(e) => handleWordTouchStart(w, e)}
-                                  onMouseUp={handleWordTouchEnd}
-                                  className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
-                                  style={{ fontFamily: `QCF_V2_P${page}` }}
-                                >
-                                  {w.code}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </React.Fragment>
-                      );
-                    })}
+      {/* 3) أسطر القرآن الكريم */}
+      <div className={`quran-line ${page <= 2 ? 'justify-center gap-1.5' : ''}`}>
+        {lineWords.map((w) => {
+          const isSelected = selectedAyahKey === w.ayahKey;
+          return (
+            <span
+              key={w.id}
+              onTouchStart={(e) => handleWordTouchStart(w, e)}
+              onTouchEnd={handleWordTouchEnd}
+              onMouseDown={(e) => handleWordTouchStart(w, e)}
+              onMouseUp={handleWordTouchEnd}
+              className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
+              style={{ fontFamily: `QCF_V2_P${page}` }}
+            >
+              {w.code}
+            </span>
+          );
+        })}
+      </div>
+    </React.Fragment>
+  );
+})}
                   </div>
                 )}
               </div>
