@@ -112,11 +112,35 @@
       font-weight: bold;
     }
 
-    /* 9) تحسين ظل الإطار الفاخر */
-    .mushaf-frame {
-      box-shadow: inset 0 0 35px rgba(212, 175, 55, 0.08), 0 10px 40px rgba(0, 0, 0, 0.45);
-    }
+   .mushaf-frame-wahi {
+  width: 100%;
+  max-width: 520px;
+  height: 100vh;
+  position: relative;
+  border: 1px solid rgba(184, 134, 47, 0.3);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 16px 8px 16px;
+  background-color: #0b1411;
+}
 
+/* شارة رقم الصفحة المنسقة بنفس شكل وحي */
+.wahi-page-badge {
+  background: linear-gradient(135deg, #12281e, #0a1712);
+  border: 1px solid #3d5e4a;
+  box-shadow: inset 0 0 5px rgba(212, 175, 55, 0.3);
+  border-radius: 12px;
+  padding: 2px 16px;
+  color: #e2d1a4;
+  font-family: 'Cairo', sans-serif;
+  font-weight: bold;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
     /* أنيميشن الـ Bottom Sheet */
     .bottom-sheet-anim {
       animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -324,6 +348,28 @@ const cardRef = useRef(null);
         touchEndX.current = 0;
       };
 
+
+const longPressTimer = useRef(null);
+
+const handleWordTouchStart = (word, e) => {
+  e.stopPropagation();
+  longPressTimer.current = setTimeout(() => {
+    setSelectedAyahKey(word.ayahKey);
+    const fullText = words.filter(w => w.ayahKey === word.ayahKey).map(w => w.text).join(" ");
+    setSelectedAyahText(fullText);
+    setActiveModal('menu');
+    if (navigator.vibrate) navigator.vibrate(40); // اهتزاز بسيط للتأكيد
+  }, 500); // 500 مللي ثانية للضغطة المطولة
+};
+
+const handleWordTouchEnd = () => {
+  if (longPressTimer.current) {
+    clearTimeout(longPressTimer.current);
+  }
+};
+
+
+      
       const handleWordClick = (word) => {
         if (selectedAyahKey === word.ayahKey) {
           setSelectedAyahKey(null);
@@ -420,71 +466,76 @@ const generateAyahImage = async () => {
 )}
 
           {/* منطقة المصحف الإطار والأنيميشن */}
-          <main 
-            onClick={() => setShowControls(prev => !prev)}
-            className="flex-1 flex items-center justify-center p-2 sm:p-4 overflow-hidden relative"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
-            {/* 9) إطار المصحف المطور بالظل والتصميم الذهبي */}
-            <div className={`mushaf-frame relative w-full max-w-[500px] h-[calc(100vh-80px)] rounded-[20px] overflow-hidden border ${night ? 'bg-[#121f1a] border-[#8a6b2d]' : 'bg-[#FFFDF7] border-[#b8862f]'}`}>
-              
-              <div className="absolute inset-0 bg-cover opacity-[0.04] pointer-events-none" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1519751138087-5bf79df62d5b?q=80&w=1200')` }}></div>
-              <div className="absolute inset-3 rounded-[20px] border-[4px] border-[#8b6d2d]/30 pointer-events-none"></div>
-              <div className="absolute inset-5 rounded-[16px] border border-[#b9953c]/40 pointer-events-none"></div>
+<main 
+  onClick={() => setShowControls(prev => !prev)}
+  className="w-full h-screen flex items-center justify-center p-0 overflow-hidden relative cursor-pointer bg-[#0b1411]"
+  onTouchStart={handleTouchStart}
+  onTouchMove={handleTouchMove}
+  onTouchEnd={handleTouchEnd}
+>
+  <div className="mushaf-frame-wahi">
+    
+    {/* هيدر معلومات الصفحة المدمج (اسم الجزء يمين واسم السورة شمال) */}
+    <div className="flex items-center justify-between text-[13px] font-bold text-amber-200/80 px-2 pt-1 border-b border-amber-500/10 pb-1">
+      <span>الجزء {toArabicNumber(meta.juz)}</span>
+      <span className="text-amber-300">{meta.surahName}</span>
+    </div>
 
-              <div className="relative h-full px-4 sm:px-10 py-6 flex flex-col justify-between">
-                
-                {(loading || !fontLoaded) ? (
-                  <div className="my-auto text-center text-amber-400 font-semibold text-sm animate-pulse flex flex-col items-center gap-2">
-                    <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span>جاري تحميل الصفحة بالرسم العثماني...</span>
-                  </div>
-                ) : (
-                  <div className="qcf-page-container page-fade">
-{pageLines.map((line) => {
-  /* 2) استخدام groupedLines لتحسين الأداء الفائق */
-  const lineWords = groupedLines[line] || [];
-
-  // فحص هل السطر يمثل بداية سورة جديدة
-  const isSurahStart = lineWords.some(w => w.ayahKey && w.ayahKey.endsWith(':1') && !w.ayahKey.startsWith('1:') && !w.ayahKey.startsWith('9:'));
-  const isFirstWordOfSurah = lineWords.length > 0 && lineWords[0].ayahKey && lineWords[0].ayahKey.endsWith(':1');
-
-  return (
-    <React.Fragment key={line}>
-      {isSurahStart && isFirstWordOfSurah && (
-        <div className="w-full text-center py-1 my-1 text-amber-300 font-bold text-sm tracking-widest border-y border-amber-500/20 bg-amber-500/5 rounded">
-          بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+    {/* منطقة القراءة والـ 15 سطر */}
+    <div className="flex-1 flex flex-col justify-between py-2">
+      {(loading || !fontLoaded) ? (
+        <div className="my-auto text-center text-amber-400 font-semibold text-sm animate-pulse flex flex-col items-center gap-2">
+          <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+          <span>جاري تحميل الصفحة بالرسم العثماني...</span>
         </div>
-      )}
-      <div className="quran-line">
-        {lineWords.map((w) => {
-          const isSelected = selectedAyahKey === w.ayahKey;
-          return (
-            <span
-              key={w.id}
-              onClick={() => handleWordClick(w)}
-              className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
-              style={{ fontFamily: `QCF_V2_P${page}` }}
-            >
-              {w.code}
-            </span>
-          );
-        })}
-      </div>
-    </React.Fragment>
-  );
-})}
+      ) : (
+        <div className="qcf-page-container page-fade">
+          {pageLines.map((line) => {
+            const lineWords = groupedLines[line] || [];
+            const isSurahStart = lineWords.some(w => w.ayahKey && w.ayahKey.endsWith(':1') && !w.ayahKey.startsWith('1:') && !w.ayahKey.startsWith('9:'));
+            const isFirstWordOfSurah = lineWords.length > 0 && lineWords[0].ayahKey && lineWords[0].ayahKey.endsWith(':1');
+
+            return (
+              <React.Fragment key={line}>
+                {isSurahStart && isFirstWordOfSurah && (
+                  <div className="w-full text-center py-1 my-0.5 text-amber-300 font-bold text-xs tracking-widest border-y border-amber-500/20 bg-amber-500/5 rounded">
+                    بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
                   </div>
                 )}
-
-                <div className="text-center text-xs font-bold opacity-60 border-t border-amber-500/20 pt-2 text-amber-300">
-                  {toArabicNumber(page)}
+                <div className="quran-line">
+                  {lineWords.map((w) => {
+                    const isSelected = selectedAyahKey === w.ayahKey;
+                    return (
+<span
+  key={w.id}
+  onTouchStart={(e) => handleWordTouchStart(w, e)}
+  onTouchEnd={handleWordTouchEnd}
+  onMouseDown={(e) => handleWordTouchStart(w, e)}
+  onMouseUp={handleWordTouchEnd}
+  className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
+  style={{ fontFamily: `QCF_V2_P${page}` }}
+>
+  {w.code}
+</span>
+                    );
+                  })}
                 </div>
-              </div>
-            </div>
-          </main>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      )}
+    </div>
+
+    {/* فوتر رقم الصفحة المزخرف مثل تطبيق وحي */}
+    <div className="text-center pt-1 pb-1">
+      <span className="wahi-page-badge">
+        {toArabicNumber(page)}
+      </span>
+    </div>
+
+  </div>
+</main>
 
 {/* الشريط السفلي العائم */}
           {showControls && (
