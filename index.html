@@ -2,58 +2,54 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>المصحف الشريف - Quran App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>المصحف الشريف - Wahei Style</title>
   
   <!-- React & ReactDOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  
-  <!-- Babel for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Arabic Fonts -->
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600;700&family=Reem+Kufi:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700&family=Reem+Kufi:wght@500;700&display=swap" rel="stylesheet">
 
   <style>
     body {
       font-family: 'Cairo', sans-serif;
       user-select: none;
       -webkit-user-select: none;
+      overflow: hidden;
+      touch-action: pan-y;
     }
-    
+
     .quran-text {
       font-family: 'Amiri', serif;
       word-spacing: 2px;
-      letter-spacing: 0px;
+      line-height: 2.3;
     }
 
     .surah-title {
       font-family: 'Reem Kufi', sans-serif;
     }
 
-    /* زخرفة رقم الآية */
-    .ayah-container {
-      transition: background-color 0.25s ease, color 0.25s ease;
-      border-radius: 6px;
-      padding: 2px 4px;
+    /* زخرفة الآيات والتفاعل */
+    .ayah-span {
+      transition: all 0.2s ease;
+      border-radius: 4px;
+      padding: 2px 3px;
       cursor: pointer;
+      display: inline;
     }
 
     .ayah-num {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.8em;
-      height: 1.8em;
+      width: 1.85em;
+      height: 1.85em;
       border-radius: 50%;
       font-size: 0.65em;
       vertical-align: middle;
@@ -62,22 +58,22 @@
       font-weight: bold;
     }
 
-    /* تحسين إطار المصحف */
-    .mushaf-border {
-      box-shadow: inset 0 0 0 2px #b8862f, inset 0 0 0 6px #2f5d46, inset 0 0 0 8px #b8862f;
+    /* تحسين التمرير لو زاد النص */
+    .page-scroll {
+      max-height: calc(100vh - 60px);
+      overflow-y: auto;
     }
-
-    /* Scrollbar لطيف */
-    ::-webkit-scrollbar {
-      width: 6px;
+    
+    .page-scroll::-webkit-scrollbar {
+      width: 4px;
     }
-    ::-webkit-scrollbar-thumb {
+    .page-scroll::-webkit-scrollbar-thumb {
       background: #b8862f;
       border-radius: 4px;
     }
   </style>
 </head>
-<body class="bg-[#EFE7D3] text-[#241C12]">
+<body class="bg-[#0b1411]">
   <div id="root"></div>
 
   <script type="text/babel">
@@ -93,28 +89,30 @@
 
     function App() {
       const [page, setPage] = useState(1);
-      const [pageInput, setPageInput] = useState("1");
-      const [night, setNight] = useState(false);
+      const [night, setNight] = useState(true);
       const [ayahs, setAyahs] = useState([]);
       const [meta, setMeta] = useState({ juz: null, surahName: "" });
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
       
-      // الآية المحددة للخيارات والتظليل
+      // التفاعل مع الآية
       const [selectedAyah, setSelectedAyah] = useState(null);
       const [playingId, setPlayingId] = useState(null);
       const [copied, setCopied] = useState(false);
       
       const audioRef = useRef(null);
 
-      // جلب بيانات الصفحة من API المعتمد على Tanzil
+      // متطلبات السحب بالأصبع (Swipe)
+      const touchStartX = useRef(0);
+      const touchEndX = useRef(0);
+
+      // جلب بيانات النص العثماني (Tanzil) لكل صفحة
       const fetchPage = useCallback(async (p) => {
         setLoading(true);
         setError(null);
         setSelectedAyah(null);
 
         try {
-          // استدعاء بيانات النص العثماني برواية حفص (Tanzil Text)
           const res = await fetch(`https://api.alquran.cloud/v1/page/${p}/quran-uthmani`);
           const json = await res.json();
 
@@ -123,8 +121,6 @@
             setAyahs(list);
             
             const firstAyah = list[0];
-            const lastAyah = list[list.length - 1];
-            
             setMeta({
               juz: firstAyah?.juz,
               surahName: firstAyah?.surah?.name || ""
@@ -133,7 +129,7 @@
             throw new Error("فشل في تحميل بيانات الصفحة");
           }
         } catch (e) {
-          setError("تعذر الاتصال بالخادم، يرجى التأكد من اتصال الإنترنت.");
+          setError("تعذر الاتصال بالخادم، التأكد من الإنترنت.");
         } finally {
           setLoading(false);
         }
@@ -141,22 +137,32 @@
 
       useEffect(() => {
         fetchPage(page);
-        setPageInput(String(page));
       }, [page, fetchPage]);
 
-      const goToPage = (p) => {
-        const clamped = Math.min(TOTAL_PAGES, Math.max(1, p));
-        setPage(clamped);
+      const changePage = (delta) => {
+        const newPage = page + delta;
+        if (newPage >= 1 && newPage <= TOTAL_PAGES) {
+          setPage(newPage);
+        }
       };
 
-      const handlePageSubmit = (e) => {
-        e.preventDefault();
-        const n = parseInt(pageInput, 10);
-        if (!isNaN(n) && n >= 1 && n <= TOTAL_PAGES) {
-          goToPage(n);
-        } else {
-          setPageInput(String(page));
+      // السحب باليد (Touch Handlers)
+      const handleTouchStart = (e) => {
+        touchStartX.current = e.targetTouches[0].clientX;
+      };
+
+      const handleTouchMove = (e) => {
+        touchEndX.current = e.targetTouches[0].clientX;
+      };
+
+      const handleTouchEnd = () => {
+        const distance = touchStartX.current - touchEndX.current;
+        if (Math.abs(distance) > 40) {
+          if (distance > 0) changePage(1);  // سحب لليسار -> الصفحة التالية
+          else changePage(-1);             // سحب لليمين -> الصفحة السابقة
         }
+        touchStartX.current = 0;
+        touchEndX.current = 0;
       };
 
       const togglePlayAudio = (ayah) => {
@@ -180,84 +186,72 @@
         });
       };
 
-      // الثيمات (ليلي / نهار)
+      // ألوان الثيم (مقتبسة من تصميم وحي)
       const theme = night ? {
-        bg: "bg-[#100D09]",
-        pageBg: "bg-[#1A150F]",
-        border: "border-[#8A6B2E]",
+        bg: "bg-[#0b1411]",
+        pageBg: "bg-[#121f1a]",
+        border: "border-[#8A6B2E]/50",
         text: "text-[#E9E0CC]",
-        textMuted: "text-[#B9AD91]",
-        headerBg: "bg-[#0D1512]",
-        accent: "#C9A227",
-        highlight: "bg-[#3A2F1E] text-[#F3E9CE]",
-        chip: "bg-[#221C13]"
+        headerBg: "bg-[#0e1a16]",
+        highlight: "bg-[#2a3e35] text-[#F3E9CE]",
+        chip: "bg-[#182922]",
+        accent: "#C9A227"
       } : {
         bg: "bg-[#EFE7D3]",
         pageBg: "bg-[#FBF5E6]",
         border: "border-[#B8862F]",
         text: "text-[#241C12]",
-        textMuted: "text-[#5B4C36]",
         headerBg: "bg-[#123328]",
-        accent: "#B8862F",
         highlight: "bg-[#F5E6C8] text-[#123328]",
-        chip: "bg-[#F1E8D3]"
+        chip: "bg-[#F1E8D3]",
+        accent: "#B8862F"
       };
 
       return (
-        <div className={`min-h-screen w-full flex flex-col items-center ${theme.bg} transition-colors duration-300`}>
+        <div className={`flex flex-col h-screen w-full ${theme.bg} select-none overflow-hidden transition-colors duration-300`}>
           <audio ref={audioRef} onEnded={() => setPlayingId(null)} />
 
-          {/* الهيدر العلوي */}
-          <header className={`w-full sticky top-0 z-20 ${theme.headerBg} text-white shadow-md px-4 py-3 flex flex-col gap-3`}>
-            <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
-              
-              {/* زر الوضع الليلي */}
-              <button 
-                onClick={() => setNight(!night)} 
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition"
-                title="تغيير المظهر"
-              >
-                {night ? <i data-lucide="sun" className="w-5 h-5 text-yellow-400"></i> : <i data-lucide="moon" className="w-5 h-5 text-amber-200"></i>}
-              </button>
+          {/* 1. الهيدر العلوي مثل تصميم وحي */}
+          <header className={`w-full ${theme.headerBg} text-amber-100 py-2 px-4 shadow-md flex items-center justify-between border-b border-amber-500/20 z-20 h-[50px]`}>
+            <button 
+              onClick={() => setNight(!night)}
+              className="p-1.5 rounded-full bg-emerald-900/30 text-amber-300 text-xs flex items-center gap-1 border border-amber-500/20"
+            >
+              {night ? "☀️ نهار" : "🌙 ليل"}
+            </button>
 
-              {/* معلومات السورة والجزء */}
-              <div className="text-center">
-                <h1 className="text-lg font-bold text-[#F3E9CE] surah-title">{meta.surahName || "المصحف الشريف"}</h1>
-                <span className="text-xs text-white/70">
-                  {meta.juz ? `الجزء ${toArabicNumber(meta.juz)}` : ""}
-                </span>
-              </div>
+            <div className="text-center">
+              <div className="text-sm font-bold text-amber-200/90">{meta.surahName || "المصحف الشريف"}</div>
+              <div className="text-[11px] text-emerald-400/80">{meta.juz ? `الجزء ${toArabicNumber(meta.juz)}` : ""}</div>
+            </div>
 
-              {/* التنقل بين الصفحات */}
-              <form onSubmit={handlePageSubmit} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={pageInput}
-                  onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ""))}
-                  className="w-12 text-center bg-white/10 text-[#F3E9CE] rounded py-1 text-sm outline-none border border-white/20 focus:border-[#C9A227]"
-                />
-                <span className="text-xs text-white/60">/ {toArabicNumber(TOTAL_PAGES)}</span>
-              </form>
+            <div className="text-xs bg-emerald-900/40 px-3 py-1 rounded-md border border-emerald-700/30 text-amber-300 font-bold">
+              {toArabicNumber(page)} / {toArabicNumber(TOTAL_PAGES)}
             </div>
           </header>
 
-          {/* عرض صفحة المصحف */}
-          <main className="w-full flex-1 flex justify-center items-center px-2 py-6">
-            <div className="w-full max-w-[650px]">
+          {/* 2. عرض النص العثماني التفاعلي مع دعم حركة السحب */}
+          <main 
+            className="flex-1 w-full flex items-center justify-center p-2 sm:p-4 page-scroll relative"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="w-full max-w-[620px] h-full flex flex-col justify-center">
               
               {loading && (
-                <div className="flex flex-col items-center justify-center gap-3 py-32 text-amber-800">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-800"></div>
-                  <span className="text-sm font-semibold">جاري تحميل الصفحة...</span>
+                <div className="flex flex-col items-center justify-center gap-3 py-32 text-amber-400">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-400"></div>
+                  <span className="text-sm font-semibold">جاري تحميل النص العثماني...</span>
                 </div>
               )}
 
               {error && (
                 <div className="flex flex-col items-center gap-4 py-24 text-center">
-                  <p className="text-red-600 font-medium">{error}</p>
+                  <p className="text-red-400 font-medium">{error}</p>
                   <button 
                     onClick={() => fetchPage(page)}
-                    className="px-5 py-2 bg-[#B8862F] text-white rounded-full font-semibold shadow hover:opacity-90"
+                    className="px-5 py-2 bg-[#B8862F] text-white rounded-full font-semibold shadow"
                   >
                     إعادة المحاولة
                   </button>
@@ -265,46 +259,44 @@
               )}
 
               {!loading && !error && (
-                <div className={`relative p-6 sm:p-10 rounded-lg ${theme.pageBg} ${theme.text} shadow-2xl border-4 ${theme.border}`}>
+                <div className={`relative p-5 sm:p-8 rounded-xl ${theme.pageBg} ${theme.text} shadow-2xl border-2 ${theme.border} my-auto`}>
                   
-                  {/* زوايا ديكورية للمصحف */}
-                  <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-[#B8862F]"></div>
-                  <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-[#B8862F]"></div>
-                  <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-[#B8862F]"></div>
-                  <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-[#B8862F]"></div>
+                  {/* زوايا ديكورية */}
+                  <div className="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-[#B8862F]"></div>
+                  <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-[#B8862F]"></div>
+                  <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-[#B8862F]"></div>
+                  <div className="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-[#B8862F]"></div>
 
-                  {/* تجميع الآيات حسب السورة */}
+                  {/* تجميع النص التفاعلي */}
                   {groupBySurah(ayahs).map((group, gIdx) => (
-                    <div key={gIdx} className="mb-6">
+                    <div key={gIdx} className="mb-4">
                       
-                      {/* رأس السورة */}
                       {group.showHeader && (
-                        <div className="my-4 py-2 px-4 rounded-md border border-[#B8862F]/40 bg-gradient-to-r from-transparent via-[#B8862F]/15 to-transparent text-center">
-                          <span className="surah-title text-xl font-bold text-[#B8862F]">
+                        <div className="my-3 py-1.5 px-4 rounded-md border border-[#B8862F]/40 bg-gradient-to-r from-transparent via-[#B8862F]/15 to-transparent text-center">
+                          <span className="surah-title text-lg font-bold text-[#B8862F]">
                             {group.surah.name}
                           </span>
                         </div>
                       )}
 
-                      {/* البسملة */}
-                      {group.showHeader && group.surah.number !== 1 && group.surah.number !== 9 && (
-                        <div className="quran-text text-center text-lg my-3 text-[#B8862F]">
+                      {/* البسملة تظهر فقط إذا كانت السورة تبدأ في هذه الصفحة وليست الفاتحة أو التوبة */}
+                      {group.showHeader && group.items[0]?.numberInSurah === 1 && group.surah.number !== 1 && group.surah.number !== 9 && (
+                        <div className="quran-text text-center text-base my-2 text-[#B8862F]">
                           {BISMILLAH}
                         </div>
                       )}
 
-                      {/* نص الصفحة الكاملة */}
-                      <div className="quran-text text-justify text-xl sm:text-2xl leading-[2.3] sm:leading-[2.5]" dir="rtl">
+                      <div className="quran-text text-justify text-lg sm:text-2xl" dir="rtl">
                         {group.items.map((a) => {
                           const isSelected = selectedAyah?.number === a.number;
                           return (
                             <span
                               key={a.number}
                               onClick={() => setSelectedAyah(isSelected ? null : a)}
-                              className={`ayah-container ${isSelected ? theme.highlight : "hover:bg-amber-500/10"}`}
+                              className={`ayah-span ${isSelected ? theme.highlight : "hover:bg-amber-500/10"}`}
                             >
                               <span>{a.text}</span>
-                              <span className="ayah-num border border-[#B8862F]/60 text-[#B8862F] bg-amber-500/5">
+                              <span className="ayah-num border border-[#B8862F]/60 text-[#B8862F]">
                                 {toArabicNumber(a.numberInSurah)}
                               </span>
                             </span>
@@ -314,8 +306,7 @@
                     </div>
                   ))}
 
-                  {/* رقم الصفحة السفلي */}
-                  <div className="text-center mt-6 text-sm font-semibold opacity-60 border-t border-amber-900/10 pt-3">
+                  <div className="text-center mt-4 text-xs font-bold opacity-60 border-t border-amber-900/10 pt-2">
                     {toArabicNumber(page)}
                   </div>
                 </div>
@@ -323,71 +314,36 @@
             </div>
           </main>
 
-          {/* شريط التحكم بالصفحات (الأزرار السفلية) */}
-          <footer className="w-full sticky bottom-0 bg-[#123328] text-white py-3 px-4 shadow-lg flex justify-center items-center gap-6 z-10">
-            <button
-              onClick={() => goToPage(page + 1)}
-              disabled={page >= TOTAL_PAGES}
-              className="flex items-center gap-1 bg-white/10 hover:bg-white/20 disabled:opacity-30 px-4 py-2 rounded-full text-sm font-semibold transition"
-            >
-              <i data-lucide="chevron-right" className="w-4 h-4"></i>
-              <span>الصفحة التالية</span>
-            </button>
-
-            <span className="text-sm font-bold text-[#C9A227]">
-              {toArabicNumber(page)}
-            </span>
-
-            <button
-              onClick={() => goToPage(page - 1)}
-              disabled={page <= 1}
-              className="flex items-center gap-1 bg-white/10 hover:bg-white/20 disabled:opacity-30 px-4 py-2 rounded-full text-sm font-semibold transition"
-            >
-              <span>الصفحة السابقة</span>
-              <i data-lucide="chevron-left" className="w-4 h-4"></i>
-            </button>
-          </footer>
-
-          {/* قائمة الخيارات للآية المحددة (Bottom Action Sheet) */}
+          {/* 3. نافذة خيارات الآية التفاعلية عند الضغط عليها */}
           {selectedAyah && (
             <div 
-              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
               onClick={() => setSelectedAyah(null)}
             >
               <div 
                 onClick={(e) => e.stopPropagation()}
-                className={`w-full sm:w-96 ${theme.pageBg} ${theme.text} rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl border-t-2 sm:border-2 ${theme.border} animate-in slide-in-from-bottom duration-200`}
+                className={`w-full sm:w-96 ${theme.pageBg} ${theme.text} rounded-t-2xl sm:rounded-2xl p-4 shadow-2xl border-t-2 sm:border-2 ${theme.border}`}
               >
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-amber-900/10">
+                <div className="flex items-center justify-between pb-2 mb-3 border-b border-amber-900/20">
                   <span className="font-bold text-sm text-[#B8862F]">
                     {selectedAyah.surah.name} - الآية ({toArabicNumber(selectedAyah.numberInSurah)})
                   </span>
-                  <button onClick={() => setSelectedAyah(null)} className="p-1 hover:opacity-70">
-                    <i data-lucide="x" className="w-5 h-5"></i>
-                  </button>
+                  <button onClick={() => setSelectedAyah(null)} className="p-1 text-xs">✕</button>
                 </div>
 
-                <div className="flex flex-col gap-2.5">
-                  {/* زر التلاوة */}
+                <div className="flex flex-col gap-2">
                   <button
                     onClick={() => togglePlayAudio(selectedAyah)}
-                    className={`flex items-center justify-between px-4 py-3 rounded-xl ${theme.chip} hover:opacity-90 transition text-sm font-semibold`}
+                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl ${theme.chip} hover:opacity-90 text-sm font-semibold border border-amber-500/20`}
                   >
-                    <span className="flex items-center gap-2">
-                      <i data-lucide={playingId === selectedAyah.number ? "pause" : "play"} className="w-4 h-4 text-[#B8862F]"></i>
-                      {playingId === selectedAyah.number ? "إيقاف التلاوة" : "استماع للآية (العفاسي)"}
-                    </span>
+                    <span>{playingId === selectedAyah.number ? "⏸ إيقاف التلاوة" : "▶ استماع للآية (العفاسي)"}</span>
                   </button>
 
-                  {/* زر النسخ */}
                   <button
                     onClick={() => copyAyahText(selectedAyah.text)}
-                    className={`flex items-center justify-between px-4 py-3 rounded-xl ${theme.chip} hover:opacity-90 transition text-sm font-semibold`}
+                    className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl ${theme.chip} hover:opacity-90 text-sm font-semibold border border-amber-500/20`}
                   >
-                    <span className="flex items-center gap-2">
-                      <i data-lucide={copied ? "check" : "copy"} className="w-4 h-4 text-[#B8862F]"></i>
-                      {copied ? "تم نسخ النص!" : "نسخ النص العثماني"}
-                    </span>
+                    <span>{copied ? "✓ تم نسخ النص" : "📋 نسخ الآية"}</span>
                   </button>
                 </div>
               </div>
@@ -398,7 +354,6 @@
       );
     }
 
-    // دالة تجميع الآيات حسب السورة داخل الصفحة
     function groupBySurah(ayahs) {
       const groups = [];
       let lastSurahNumber = null;
@@ -418,13 +373,7 @@
       return groups;
     }
 
-    // تشغيل التطبيق وتحديث أيقونات Lucide
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<App />);
-
-    setTimeout(() => {
-      if (window.lucide) window.lucide.createIcons();
-    }, 500);
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
 </html>
