@@ -387,32 +387,39 @@
                   </div>
                 ) : (
                   <div className="qcf-page-container page-fade">
-                    {pageLines.map((line) => {
-                      /* 2) استخدام groupedLines لتحسين الأداء الفائق */
-                      const lineWords = groupedLines[line] || [];
-                      return (
-                        <div key={line} className="quran-line">
-                          {lineWords.map((w) => {
-                            const isSelected = selectedAyahKey === w.ayahKey;
-                            return (
-                              <span
-                                key={w.id}
-                                onClick={() => handleWordClick(w)}
-                                className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
-                                style={{ fontFamily: `QCF_V2_P${page}` }}
-                              >
-                                {w.code}
-                                {w.charType === "end" && (
-                                  <span className="ayah-number">
-                                    {toArabicNumber(w.ayahKey.split(':')[1])}
-                                  </span>
-                                )}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
+{pageLines.map((line) => {
+  /* 2) استخدام groupedLines لتحسين الأداء الفائق */
+  const lineWords = groupedLines[line] || [];
+
+  // فحص هل السطر يمثل بداية سورة جديدة
+  const isSurahStart = lineWords.some(w => w.ayahKey && w.ayahKey.endsWith(':1') && !w.ayahKey.startsWith('1:') && !w.ayahKey.startsWith('9:'));
+  const isFirstWordOfSurah = lineWords.length > 0 && lineWords[0].ayahKey && lineWords[0].ayahKey.endsWith(':1');
+
+  return (
+    <React.Fragment key={line}>
+      {isSurahStart && isFirstWordOfSurah && (
+        <div className="w-full text-center py-1 my-1 text-amber-300 font-bold text-sm tracking-widest border-y border-amber-500/20 bg-amber-500/5 rounded">
+          بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+        </div>
+      )}
+      <div className="quran-line">
+        {lineWords.map((w) => {
+          const isSelected = selectedAyahKey === w.ayahKey;
+          return (
+            <span
+              key={w.id}
+              onClick={() => handleWordClick(w)}
+              className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
+              style={{ fontFamily: `QCF_V2_P${page}` }}
+            >
+              {w.code}
+            </span>
+          );
+        })}
+      </div>
+    </React.Fragment>
+  );
+})}
                   </div>
                 )}
 
