@@ -200,6 +200,8 @@ function SurahBanner({ surahName }) {
     
     function App() {
       const [showControls, setShowControls] = useState(false); // افتراضياً الشاشة كاملة بدونهما
+   
+      
       const [page, setPage] = useState(1);
       const [night, setNight] = useState(true);
       const [words, setWords] = useState([]);
@@ -211,6 +213,14 @@ function SurahBanner({ surahName }) {
       const [meta, setMeta] = useState({ surahName: "", juz: 1, hizb: 1 });
       const [activeModal, setActiveModal] = useState(null);
 
+
+const handlePageChange = (newPage) => {
+  if (newPage >= 1 && newPage <= TOTAL_PAGES) {
+    setPage(newPage);
+  }
+};
+
+      
 const [tafsirText, setTafsirText] = useState("");
 const [tafsirLoading, setTafsirLoading] = useState(false);
 const [repeatCount, setRepeatCount] = useState(1);
@@ -374,9 +384,9 @@ const cardRef = useRef(null);
 const handleTouchEnd = () => {
   const dist = touchStartX.current - touchEndX.current;
   if (Math.abs(dist) > 40 && touchEndX.current !== 0) {
-    // السحب من اليمين لليسار (dist > 0) يقلب للصفحة التالية
+    // السحب من اليمين للشمال (dist > 0) يقلب للصفحة التالية في المصحف
     if (dist > 0 && page < TOTAL_PAGES) handlePageChange(page + 1);
-    // السحب من اليسار لليمين (dist < 0) يرجع للصفحة السابقة
+    // السحب من الشمال لليمين (dist < 0) يرجع للصفحة السابقة
     if (dist < 0 && page > 1) handlePageChange(page - 1);
   }
   touchStartX.current = 0;
@@ -500,91 +510,92 @@ const generateAyahImage = async () => {
   </header>
 )}
 
-          {/* منطقة المصحف الإطار والأنيميشن */}
-<main 
-  onClick={() => setShowControls(prev => !prev)}
-  className="w-full h-screen flex items-center justify-center p-0 overflow-hidden relative cursor-pointer bg-[#0b1411]"
-  onTouchStart={handleTouchStart}
-  onTouchMove={handleTouchMove}
-  onTouchEnd={handleTouchEnd}
->
-  <div className="mushaf-frame-wahi relative flex flex-col justify-between h-full w-full max-w-[540px] px-4 py-3">
-    
-    {/* 1. الهيدر الثابت: الجزء فوق ع اليمين، السورة فوق ع الشمال بالتشكيل */}
-    <div className="flex items-center justify-between text-xs font-bold border-b border-amber-500/10 pb-1 z-10">
-      <span className="text-emerald-300/90 font-sans">{getJuzText(meta.juz)}</span>
-      <span className="text-amber-300 text-sm font-serif">{meta.surahName}</span>
-    </div>
+{/* منطقة المصحف والشاشة الكاملة */}
+          <main 
+            onClick={() => setShowControls(prev => !prev)}
+            className="w-full h-screen flex items-center justify-center p-0 overflow-hidden relative cursor-pointer bg-[#0b1411]"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="mushaf-frame-wahi relative flex flex-col justify-between h-full w-full max-w-[540px] px-4 py-3">
+              
+              {/* 1. الهيدر الثابت: الجزء فوق ع اليمين، السورة فوق ع الشمال بالتشكيل */}
+              <div className="flex items-center justify-between text-xs font-bold border-b border-amber-500/10 pb-1 z-10">
+                <span className="text-emerald-300/90 font-sans">{getJuzText(meta.juz)}</span>
+                <span className="text-amber-300 text-sm font-serif">{meta.surahName}</span>
+              </div>
 
-    {/* 2. جسم الصفحة والاستثناء لصفحتي الفاتحة والبقرة */}
-    <div className={`flex-1 flex flex-col justify-center ${page <= 2 ? 'my-auto py-6' : 'py-1 justify-between'}`}>
-      {(loading || !fontLoaded) ? (
-        <div className="my-auto text-center text-amber-400 font-semibold text-sm animate-pulse flex flex-col items-center gap-2">
-          <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-          <span>جاري تحميل الصفحة بالرسم العثماني...</span>
-        </div>
-      ) : (
-        <div className={`qcf-page-container page-fade ${page <= 2 ? 'flex flex-col items-center justify-center gap-3' : ''}`}>
-          
-          {/* إظهار برقع السورة الفاخر في بداية صفحتي الفاتحة والبقرة */}
-          {page === 1 && <SurahBanner surahName="الفَاتِحَةِ" />}
-          {page === 2 && <SurahBanner surahName="البَقَرَةِ" />}
+              {/* 2. جسم الصفحة والاستثناء لصفحتي الفاتحة والبقرة */}
+              <div className={`flex-1 flex flex-col justify-center ${page <= 2 ? 'my-auto py-6' : 'py-1 justify-between'}`}>
+                {(loading || !fontLoaded) ? (
+                  <div className="my-auto text-center text-amber-400 font-semibold text-sm animate-pulse flex flex-col items-center gap-2">
+                    <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                    <span>جاري تحميل الصفحة بالرسم العثماني...</span>
+                  </div>
+                ) : (
+                  <div className={`qcf-page-container page-fade ${page <= 2 ? 'flex flex-col items-center justify-center gap-3' : ''}`}>
+                    
+                    {/* إظهار برقع السورة الفاخر في بداية صفحتي الفاتحة والبقرة */}
+                    {page === 1 && <SurahBanner surahName="الفَاتِحَةِ" />}
+                    {page === 2 && <SurahBanner surahName="البَقَرَةِ" />}
 
-          {pageLines.map((line) => {
-            const lineWords = groupedLines[line] || [];
-            const isSurahStart = lineWords.some(w => w.ayahKey && w.ayahKey.endsWith(':1') && !w.ayahKey.startsWith('1:') && !w.ayahKey.startsWith('9:'));
-            const isFirstWordOfSurah = lineWords.length > 0 && lineWords[0].ayahKey && lineWords[0].ayahKey.endsWith(':1');
+                    {pageLines.map((line) => {
+                      const lineWords = groupedLines[line] || [];
+                      const isSurahStart = lineWords.some(w => w.ayahKey && w.ayahKey.endsWith(':1') && !w.ayahKey.startsWith('1:') && !w.ayahKey.startsWith('9:'));
+                      const isFirstWordOfSurah = lineWords.length > 0 && lineWords[0].ayahKey && lineWords[0].ayahKey.endsWith(':1');
 
-            return (
-              <React.Fragment key={line}>
-                {/* إطار برقع السورة باقي الصفحات عند بداية كل سورة جديدة */}
-                {isSurahStart && isFirstWordOfSurah && page > 2 && (
-                  <SurahBanner surahName={meta.surahName} />
-                )}
+                      return (
+                        <React.Fragment key={line}>
+                          {/* إطار برقع السورة باقي الصفحات عند بداية كل سورة جديدة */}
+                          {isSurahStart && isFirstWordOfSurah && page > 2 && (
+                            <SurahBanner surahName={meta.surahName} />
+                          )}
 
-                {/* البسملة */}
-                {isSurahStart && isFirstWordOfSurah && page > 1 && (
-                  <div className="w-full text-center py-1 my-0.5 text-amber-300 font-bold text-xs tracking-widest">
-                    بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                          {/* البسملة */}
+                          {isSurahStart && isFirstWordOfSurah && page > 1 && (
+                            <div className="w-full text-center py-1 my-0.5 text-amber-300 font-bold text-xs tracking-widest">
+                              بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                            </div>
+                          )}
+
+                          <div className={`quran-line ${page <= 2 ? 'justify-center gap-1.5' : ''}`}>
+                            {lineWords.map((w) => {
+                              const isSelected = selectedAyahKey === w.ayahKey;
+                              return (
+                                <span
+                                  key={w.id}
+                                  onTouchStart={(e) => handleWordTouchStart(w, e)}
+                                  onTouchEnd={handleWordTouchEnd}
+                                  onMouseDown={(e) => handleWordTouchStart(w, e)}
+                                  onMouseUp={handleWordTouchEnd}
+                                  className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
+                                  style={{ fontFamily: `QCF_V2_P${page}` }}
+                                >
+                                  {w.code}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 )}
+              </div>
 
-                <div className={`quran-line ${page <= 2 ? 'justify-center gap-1.5' : ''}`}>
-                  {lineWords.map((w) => {
-                    const isSelected = selectedAyahKey === w.ayahKey;
-                    return (
-                      <span
-                        key={w.id}
-                        onTouchStart={(e) => handleWordTouchStart(w, e)}
-                        onTouchEnd={handleWordTouchEnd}
-                        onMouseDown={(e) => handleWordTouchStart(w, e)}
-                        onMouseUp={handleWordTouchEnd}
-                        className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
-                        style={{ fontFamily: `QCF_V2_P${page}` }}
-                      >
-                        {w.code}
-                      </span>
-                    );
-                  })}
+              {/* 3. الفوتر: فردي تحت ع اليمين / زوجي تحت ع الشمال */}
+              <div className={`w-full flex pt-1 pb-1 z-10 ${page % 2 !== 0 ? 'justify-end' : 'justify-start'}`}>
+                <div className="wahi-page-badge flex items-center gap-1">
+                  <span className="text-xs">❖</span>
+                  <span>{toArabicNumber(page)}</span>
                 </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
-      )}
-    </div>
+              </div>
 
-    {/* 3. الفوتر: فردي تحت ع اليمين / زوجي تحت ع الشمال */}
-    <div className={`w-full flex pt-1 pb-1 z-10 ${page % 2 !== 0 ? 'justify-end' : 'justify-start'}`}>
-      <div className="wahi-page-badge flex items-center gap-1">
-        <span className="text-xs">❖</span>
-        <span>{toArabicNumber(page)}</span>
-      </div>
-    </div>
+            </div>
+          </main>
 
-  </div>
-</main>
-
+          
 {/* الشريط السفلي العائم */}
           {showControls && (
             <footer className="fixed bottom-0 inset-x-0 bg-[#123328] border-t border-emerald-700/50 p-3 flex flex-col gap-2 z-40 transition-all duration-300">
