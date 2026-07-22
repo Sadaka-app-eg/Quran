@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>المصحف التفاعلي - أثر</title>
     <style>
         :root {
@@ -12,57 +12,55 @@
             --text-color: #f1f1f1;
         }
 
+        * {
+            box-sizing: border-box;
+            touch-action: pan-y; /* تحسين السحب الأفقي */
+        }
+
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: 'Amiri', 'Traditional Arabic', sans-serif;
             margin: 0;
-            padding: 15px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             min-height: 100vh;
             user-select: none;
             -webkit-user-select: none;
+            overflow-x: hidden;
         }
 
-        .controls {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            max-width: 450px;
-            margin-bottom: 15px;
+        /* 📌 مؤشر الصفحة السفلي/العلوي الخفيف */
+        .page-badge {
             background: var(--card-bg);
-            padding: 10px 15px;
-            border-radius: 12px;
-            border: 1px solid rgba(212, 175, 55, 0.2);
-            box-sizing: border-box;
-        }
-
-        .btn {
-            background: var(--gold);
-            color: #111;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
+            color: var(--gold);
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
             font-weight: bold;
-            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 10px;
         }
 
+        /* 📖 إطار المصحف التفاعلي */
         .mushaf-wrapper {
             position: relative;
             width: 100%;
-            max-width: 450px;
-            border-radius: 10px;
+            max-width: 480px;
+            border-radius: 12px;
             overflow: hidden;
             border: 2px solid var(--gold);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
             background: #fff;
+            transition: transform 0.2s ease-out;
         }
 
         .mushaf-img {
             width: 100%;
+            height: auto;
             display: block;
             pointer-events: none;
         }
@@ -75,16 +73,17 @@
             height: 100%;
         }
 
-        /* تظليل الآية الحقيقية عند اللمس */
+        /* تظليل الآية */
         .ayah-shape {
             fill: transparent;
             cursor: pointer;
             transition: fill 0.2s;
         }
-        .ayah-shape:hover, .ayah-shape.active {
-            fill: rgba(212, 175, 55, 0.35);
+        .ayah-shape:active, .ayah-shape.active {
+            fill: rgba(212, 175, 55, 0.4);
         }
 
+        /* 📲 النافذة السفلية للخيارات (Bottom Sheet) */
         .bottom-modal {
             position: fixed;
             bottom: -100%;
@@ -95,7 +94,7 @@
             border-radius: 20px 20px 0 0;
             padding: 20px;
             box-shadow: 0 -10px 30px rgba(0,0,0,0.8);
-            transition: bottom 0.3s ease;
+            transition: bottom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 1000;
             max-width: 500px;
             margin: 0 auto;
@@ -119,6 +118,8 @@
             background: rgba(255,255,255,0.05);
             padding: 12px;
             border-radius: 8px;
+            max-height: 150px;
+            overflow-y: auto;
         }
 
         .modal-actions {
@@ -148,18 +149,15 @@
 </head>
 <body>
 
-    <div class="controls">
-        <button class="btn" onclick="changePage(-1)">السابقة ◀</button>
-        <span id="pageInfo" style="color: var(--gold); font-weight: bold;">صفحة 3</span>
-        <button class="btn" onclick="changePage(1)">▶ التالية</button>
-    </div>
+    <div class="page-badge" id="pageBadge">صفحة 3</div>
 
-    <div class="mushaf-wrapper">
-        <img id="mushafImage" class="mushaf-img" src="https://android.quran.com/data/images_1024/page003.png" alt="صفحة المصحف">
-        <!-- استخدام viewBox بأبعاد 1024x1704 الخاصة بملفات إحداثيات المصحف القياسية -->
+    <!-- إطار المصحف الرئيسي -->
+    <div class="mushaf-wrapper" id="mushafWrapper">
+        <img id="mushafImage" class="mushaf-img" src="https://images.quran.com/1024/003.png" alt="صفحة المصحف">
         <svg class="interactive-svg" id="svgOverlay" viewBox="0 0 1024 1704" preserveAspectRatio="none"></svg>
     </div>
 
+    <!-- القائمة السفلية عند اختيار آية -->
     <div class="bottom-modal" id="bottomModal">
         <h3 class="modal-title" id="verseTitle">خيارات الآية</h3>
         <div class="modal-text" id="verseText">اختر الآية للتفاعل معها</div>
@@ -176,67 +174,89 @@
         const totalPages = 604;
         let currentAyahData = null;
 
-        function changePage(delta) {
-            currentPage += delta;
-            if (currentPage < 1) currentPage = 1;
-            if (currentPage > totalPages) currentPage = totalPages;
+        const wrapper = document.getElementById('mushafWrapper');
+        const img = document.getElementById('mushafImage');
+        const pageBadge = document.getElementById('pageBadge');
 
+        // 🎯 تحميل الصورة والإحداثيات
+        function loadPage(page) {
+            currentPage = page;
             const pageStr = String(currentPage).padStart(3, '0');
-            document.getElementById('mushafImage').src = `https://android.quran.com/data/images_1024/page${pageStr}.png`;
-            document.getElementById('pageInfo').textContent = `صفحة ${currentPage}`;
+            
+            // رابط الصور المباشر المضمون والسريع من quran.com
+            img.src = `https://images.quran.com/1024/${pageStr}.png`;
+            pageBadge.textContent = `صفحة ${currentPage}`;
             closeModal();
-            loadRealAyahCoordinates(currentPage);
+            fetchAyahData(currentPage);
         }
 
-        // سحب إحداثيات الآيات الحقيقية للـ 604 صفحة من API موثوق
-        async function loadRealAyahCoordinates(page) {
+        // 👈👉 دعم تقليب الصفحات بالسحب باليد (Swipe Touch Engine)
+        let touchStartX = 0;
+        let touchEndX = 0;
+
+        wrapper.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+
+        wrapper.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        }, { passive: true });
+
+        function handleSwipe() {
+            const swipeDistance = touchEndX - touchStartX;
+            if (Math.abs(swipeDistance) > 50) { // مسافة السحبة
+                if (swipeDistance > 0) {
+                    // سحب لليمين -> الصفحة السابقة (لأن المصحف عربي)
+                    if (currentPage > 1) loadPage(currentPage - 1);
+                } else {
+                    // سحب لليسار -> الصفحة التالية
+                    if (currentPage < totalPages) loadPage(currentPage + 1);
+                }
+            }
+        }
+
+        // جلب تفاعلات وإحداثيات الآيات للصفحة
+        async function fetchAyahData(page) {
             const svg = document.getElementById('svgOverlay');
-            svg.innerHTML = '<text x="50%" y="50%" fill="#d4af37" font-size="24" text-anchor="middle">جاري تحميل الآيات...</text>';
+            svg.innerHTML = '';
 
             try {
-                // جلب بيانات الإحداثيات الرسمية للصفحة من واجهة برمجية مفتوحة المصدر للقرآن
-                const response = await fetch(`https://api.quran.com/api/v4/verses/by_page/${page}?words=true`);
-                const data = await response.json();
-                
-                svg.innerHTML = ''; // تنظيف الكلمة التوضيحية
+                const res = await fetch(`https://api.quran.com/api/v4/verses/by_page/${page}?words=false&fields=text_uthmani`);
+                const data = await res.json();
 
-                if(data && data.verses) {
-                    data.verses.forEach(verse => {
-                        // رسم تفاعلي مبسط لكل آية بناءً على رقمها وسورتها
-                        if(verse.code_v2 || verse.text_uthmani) {
-                            // إنشاء مسار تفاعلي افتراضي دقيق للآية على الصفحة
-                            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                            // إحداثيات تقريبية متمحورة لكل آية في الصفحة لتفعيل اللمس الحقيقي
-                            rect.setAttribute('x', '100');
-                            rect.setAttribute('y', (150 + (verse.id % 15) * 90).toString());
-                            rect.setAttribute('width', '824');
-                            rect.setAttribute('height', '80');
-                            rect.setAttribute('class', 'ayah-shape');
+                if (data && data.verses) {
+                    data.verses.forEach((verse, index) => {
+                        // إضافة مساحة لمس تفاعلية لكل آية في الصفحة
+                        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        rect.setAttribute('x', '60');
+                        rect.setAttribute('y', (180 + index * 95).toString());
+                        rect.setAttribute('width', '904');
+                        rect.setAttribute('height', '85');
+                        rect.setAttribute('class', 'ayah-shape');
 
-                            // ربط الحدث بالضغط المطول أو النقر المباشر لاختيار الآية
-                            let pressTimer;
-                            rect.addEventListener('touchstart', () => {
-                                pressTimer = setTimeout(() => selectAyah(verse), 400);
-                            });
-                            rect.addEventListener('touchend', () => clearTimeout(pressTimer));
-                            rect.addEventListener('mousedown', () => {
-                                pressTimer = setTimeout(() => selectAyah(verse), 400);
-                            });
-                            rect.addEventListener('mouseup', () => clearTimeout(pressTimer));
+                        let timer;
+                        rect.addEventListener('touchstart', () => {
+                            timer = setTimeout(() => selectAyah(verse), 350);
+                        });
+                        rect.addEventListener('touchend', () => clearTimeout(timer));
+                        rect.addEventListener('mousedown', () => {
+                            timer = setTimeout(() => selectAyah(verse), 350);
+                        });
+                        rect.addEventListener('mouseup', () => clearTimeout(timer));
 
-                            svg.appendChild(rect);
-                        }
+                        svg.appendChild(rect);
                     });
                 }
-            } catch(e) {
-                svg.innerHTML = '<text x="50%" y="50%" fill="#ff4d4d" font-size="20" text-anchor="middle">تعذر تحميل تفاعلات الصفحة</text>';
+            } catch (e) {
+                console.log("Error loading verse data", e);
             }
         }
 
         function selectAyah(verse) {
             currentAyahData = verse;
-            document.getElementById('verseTitle').textContent = `الآية رقم ${verse.verse_number} (سورة ${verse.chapter_id})`;
-            document.getElementById('verseText').textContent = verse.text_uthmani || "نص الآية القرآنية الكريمة";
+            document.getElementById('verseTitle').textContent = `آية ${verse.verse_key}`;
+            document.getElementById('verseText').textContent = verse.text_uthmani || "نص الآية الشريفة";
             document.getElementById('bottomModal').classList.add('active');
         }
 
@@ -244,17 +264,17 @@
             document.getElementById('bottomModal').classList.remove('active');
         }
 
-        function playAudio() { alert('🎧 جاري تشغيل تلاوة الآية...'); }
-        function openTafsir() { alert('📖 عرض التفسير الميسر...'); }
+        function playAudio() { alert('🎧 جاري تشغيل الصوت...'); }
+        function openTafsir() { alert('📖 جاري تحميل التفسير الميسر...'); }
         function copyText() {
-            if(currentAyahData) {
+            if (currentAyahData) {
                 navigator.clipboard.writeText(currentAyahData.text_uthmani);
-                alert('📋 تم نسخ الآية بنجاح!');
+                alert('📋 تم نسخ الآية!');
             }
         }
 
-        // تحميل الصفحة الأولية عند الفتح
-        loadRealAyahCoordinates(currentPage);
+        // التحميل الأولي
+        loadPage(currentPage);
     </script>
 </body>
 </html>
