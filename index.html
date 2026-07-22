@@ -53,6 +53,31 @@
       width: 100%;
     }
 
+
+/* حاوية السحب الأفقية السلسة مثل الكتب */
+    .pages-slider {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .pages-slider::-webkit-scrollbar {
+      display: none;
+    }
+    .page-slide {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+    }
+
+
+    
     .quran-line {
       display: flex;
       justify-content: space-between;
@@ -217,6 +242,29 @@
         }
       };
 
+const sliderRef = useRef(null);
+
+      // التزحزح السلس التلقائي للوصول للصفحة عند التغيير
+      useEffect(() => {
+        if (sliderRef.current) {
+          sliderRef.current.scrollLeft = sliderRef.current.clientWidth;
+        }
+      }, [page]);
+
+      const handleScrollEnd = () => {
+        if (!sliderRef.current) return;
+        const width = sliderRef.current.clientWidth;
+        const scrollLeft = sliderRef.current.scrollLeft;
+        
+        // حساب التزحزح لمعرفة هل انتقل للصفحة التالية أو السابقة
+        if (scrollLeft > width * 1.5 && page < TOTAL_PAGES) {
+          setPage(prev => prev + 1);
+        } else if (scrollLeft < width * 0.5 && page > 1) {
+          setPage(prev => prev - 1);
+        }
+      };
+
+      
       useEffect(() => {
         const last = localStorage.getItem("last_page");
         if (last) setPage(Number(last));
@@ -455,86 +503,85 @@ const handleTouchEnd = () => {
             </header>
           )}
 
-          {/* منطقة المصحف كاملة الشاشة */}
+         {/* منطقة المصحف مع إمكانية التعليق بين الصفحتين أثناء السحب */}
           <main 
             onClick={() => setShowControls(prev => !prev)}
             className="w-full h-screen flex items-center justify-center p-0 overflow-hidden relative cursor-pointer bg-[#0b1411]"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
           >
-            <div className="mushaf-frame-wahi relative flex flex-col justify-between h-full w-full max-w-[540px] px-4 py-3">
-              
-              {/* 1. الهيدر الثابت: الجزء يمين والسورة شمال بالتشكيل */}
-              <div className="flex items-center justify-between text-xs font-bold border-b border-amber-500/10 pb-1 z-10">
-                <span className="text-emerald-300/90 font-sans">{getJuzText(meta.juz)}</span>
-                <span className="text-amber-300 text-sm font-serif">{meta.surahName}</span>
-              </div>
-
-              {/* 2. جسم الصفحة بدون أي تكرار لبرقع السورة */}
-              <div className={`flex-1 flex flex-col justify-center ${page <= 2 ? 'my-auto py-4' : 'py-1 justify-between'}`}>
-                {(loading || !fontLoaded) ? (
-                  <div className="my-auto text-center text-amber-400 font-semibold text-sm animate-pulse flex flex-col items-center gap-2">
-                    <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-                    <span>جاري تحميل الصفحة بالرسم العثماني...</span>
+            <div 
+              ref={sliderRef}
+              onScroll={handleScrollEnd}
+              className="pages-slider"
+            >
+              {/* عرض المصحف التفاعلي */}
+              <div className="page-slide flex items-center justify-center">
+                <div className="mushaf-frame-wahi relative flex flex-col justify-between h-full w-full max-w-[540px] px-4 py-3">
+                  
+                  {/* الهيدر الثابت: الجزء فوق ع اليمين، السورة فوق ع الشمال */}
+                  <div className="flex items-center justify-between text-xs font-bold border-b border-amber-500/10 pb-1 z-10">
+                    <span className="text-emerald-300/90 font-sans">{getJuzText(meta.juz)}</span>
+                    <span className="text-amber-300 text-sm font-serif">{meta.surahName}</span>
                   </div>
-                ) : (
-                  <div className={`qcf-page-container page-fade ${page <= 2 ? 'flex flex-col items-center justify-center gap-2' : ''}`}>
-                    {pageLines.map((line) => {
-                      const lineWords = groupedLines[line] || [];
-                      
-                      // الكشف عن الآية رقم 1 في أي سورة
-                      const firstWordOfAyahOne = lineWords.find(w => w.ayahKey && w.ayahKey.endsWith(':1'));
-                      const isSurahStart = !!firstWordOfAyahOne;
 
-                      return (
-                        <React.Fragment key={line}>
-                          {/* رسم رأس السورة مرة واحدة فقط بدون تكرار */}
-                          {isSurahStart && (
-                            <SurahBanner surahName={meta.surahName} />
-                          )}
+                  {/* جسم الصفحة بالأسطر والرسم العثماني */}
+                  <div className={`flex-1 flex flex-col justify-center ${page <= 2 ? 'my-auto py-4' : 'py-1 justify-between'}`}>
+                    {(loading || !fontLoaded) ? (
+                      <div className="my-auto text-center text-amber-400 font-semibold text-sm animate-pulse flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                        <span>جاري تحميل الصفحة...</span>
+                      </div>
+                    ) : (
+                      <div className={`qcf-page-container page-fade ${page <= 2 ? 'flex flex-col items-center justify-center gap-2' : ''}`}>
+                        {pageLines.map((line) => {
+                          const lineWords = groupedLines[line] || [];
+                          const firstWordOfAyahOne = lineWords.find(w => w.ayahKey && w.ayahKey.endsWith(':1'));
+                          const isSurahStart = !!firstWordOfAyahOne;
 
-                          {/* رسم البسملة */}
-                          {isSurahStart && !firstWordOfAyahOne.ayahKey.startsWith('1:') && !firstWordOfAyahOne.ayahKey.startsWith('9:') && (
-                            <div className="w-full text-center py-1 my-0.5 text-amber-300 font-bold text-xs tracking-widest">
-                              بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-                            </div>
-                          )}
+                          return (
+                            <React.Fragment key={line}>
+                              {isSurahStart && <SurahBanner surahName={meta.surahName} />}
 
-                          {/* أسطر الكلمات بالخط العثماني الكامل بدون تاكل */}
-                          <div className={`quran-line ${page <= 2 ? 'justify-center gap-1.5' : ''}`}>
-                            {lineWords.map((w) => {
-                              const isSelected = selectedAyahKey === w.ayahKey;
-                              return (
-                                <span
-                                  key={w.id}
-                                  onTouchStart={(e) => handleWordTouchStart(w, e)}
-                                  onTouchEnd={handleWordTouchEnd}
-                                  onMouseDown={(e) => handleWordTouchStart(w, e)}
-                                  onMouseUp={handleWordTouchEnd}
-                                  className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
-                                  style={{ fontFamily: `QCF_V2_P${page}` }}
-                                >
-                                  {w.code}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </React.Fragment>
-                      );
-                    })}
+                              {isSurahStart && !firstWordOfAyahOne.ayahKey.startsWith('1:') && !firstWordOfAyahOne.ayahKey.startsWith('9:') && (
+                                <div className="w-full text-center py-1 my-0.5 text-amber-300 font-bold text-xs tracking-widest">
+                                  بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+                                </div>
+                              )}
+
+                              <div className={`quran-line ${page <= 2 ? 'justify-center gap-1.5' : ''}`}>
+                                {lineWords.map((w) => {
+                                  const isSelected = selectedAyahKey === w.ayahKey;
+                                  return (
+                                    <span
+                                      key={w.id}
+                                      onTouchStart={(e) => handleWordTouchStart(w, e)}
+                                      onTouchEnd={handleWordTouchEnd}
+                                      onMouseDown={(e) => handleWordTouchStart(w, e)}
+                                      onMouseUp={handleWordTouchEnd}
+                                      className={`quran-word ${isSelected ? 'quran-word-selected' : ''}`}
+                                      style={{ fontFamily: `QCF_V2_P${page}` }}
+                                    >
+                                      {w.code}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* 3. الفوتر: فردي يمين / زوجي شمال */}
-              <div className={`w-full flex pt-1 pb-1 z-10 ${page % 2 !== 0 ? 'justify-end' : 'justify-start'}`}>
-                <div className="wahi-page-badge flex items-center gap-1">
-                  <span className="text-xs">❖</span>
-                  <span>{toArabicNumber(page)}</span>
+                  {/* الفوتر: فردي تحت ع اليمين / زوجي تحت ع الشمال */}
+                  <div className={`w-full flex pt-1 pb-1 z-10 ${page % 2 !== 0 ? 'justify-end' : 'justify-start'}`}>
+                    <div className="wahi-page-badge flex items-center gap-1">
+                      <span className="text-xs">❖</span>
+                      <span>{toArabicNumber(page)}</span>
+                    </div>
+                  </div>
+
                 </div>
               </div>
-
             </div>
           </main>
 
