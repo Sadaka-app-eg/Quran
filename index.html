@@ -346,15 +346,15 @@
         touchEndX.current = e.targetTouches[0].clientX;
       };
       const handleTouchMove = (e) => { touchEndX.current = e.targetTouches[0].clientX; };
-      const handleTouchEnd = () => {
+const handleTouchEnd = () => {
         const dist = touchStartX.current - touchEndX.current;
         if (Math.abs(dist) > 35) {
-          // السحب من اليسار لليمين (dist < 0) يقلب للصفحة التالية في اتجاه RTL المصحف
-          if (dist < -35 && page < TOTAL_PAGES) {
+          // سحب من اليمين للشمال: تقدم للصفحة التالية (1 -> 2 -> 3)
+          if (dist > 35 && page < TOTAL_PAGES) {
             handlePageChange(page + 1);
           }
-          // السحب من اليمين لليسار (dist > 0) يرجع للصفحة السابقة
-          else if (dist > 35 && page > 1) {
+          // سحب من الشمال لليمين: رجوع للصفحة السابقة (3 -> 2 -> 1)
+          else if (dist < -35 && page > 1) {
             handlePageChange(page - 1);
           }
         }
