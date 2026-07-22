@@ -151,15 +151,36 @@
     }
 
     // مكون إطار رأس السورة الفاخر (مرة واحدة فقط بدون تكرار)
+   // مكون برقع/إطار رأس السورة الاحترافي المطابق لتطبيق وحي
     function SurahBanner({ surahName }) {
       return (
-        <div className="w-full my-2 flex items-center justify-center relative">
-          <div className="w-full max-w-[420px] h-[46px] bg-[#12241b] border-2 border-[#b8862f]/60 rounded-xl flex items-center justify-between px-4 shadow-lg relative overflow-hidden">
-            <div className="w-5 h-5 border border-[#b8862f]/40 rotate-45 bg-[#0b1411] flex items-center justify-center text-[8px] text-[#d4af37]">❖</div>
-            <span className="text-amber-200 font-bold text-base tracking-wide font-serif z-10">
+        <div className="w-full my-2.5 flex items-center justify-center px-1">
+          <div className="relative w-full max-w-[480px] h-[50px] flex items-center justify-center select-none">
+            {/* إطار وبراقع SVG زخرفية بدقة عالية */}
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 500 55" preserveAspectRatio="none">
+              {/* الخلفية الرئيسية */}
+              <rect x="2" y="2" width="496" height="51" rx="8" fill="#10251b" stroke="#92702c" strokeWidth="2"/>
+              <rect x="6" y="6" width="488" height="43" rx="5" fill="none" stroke="#d4af37" strokeWidth="1" strokeOpacity="0.45" strokeDasharray="6 3"/>
+              
+              {/* الزخرفة الجانبية اليمين */}
+              <g fill="#d4af37">
+                <path d="M 12 27.5 Q 28 8 50 27.5 Q 28 47 12 27.5 Z" fill="#193826" stroke="#b8862f" strokeWidth="1.2"/>
+                <circle cx="31" cy="27.5" r="3.5" fill="#fce788"/>
+                <path d="M 52 14 L 72 27.5 L 52 41 Z" fill="none" stroke="#8a6b2d" strokeWidth="1"/>
+              </g>
+
+              {/* الزخرفة الجانبية الشمال */}
+              <g fill="#d4af37">
+                <path d="M 488 27.5 Q 472 8 450 27.5 Q 472 47 488 27.5 Z" fill="#193826" stroke="#b8862f" strokeWidth="1.2"/>
+                <circle cx="469" cy="27.5" r="3.5" fill="#fce788"/>
+                <path d="M 448 14 L 428 27.5 L 448 41 Z" fill="none" stroke="#8a6b2d" strokeWidth="1"/>
+              </g>
+            </svg>
+
+            {/* نص اسم السورة الزاهي بالمنتصف */}
+            <span className="relative z-10 text-amber-200 font-bold text-lg md:text-xl tracking-widest font-serif drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
               سُورَةُ {surahName}
             </span>
-            <div className="w-5 h-5 border border-[#b8862f]/40 rotate-45 bg-[#0b1411] flex items-center justify-center text-[8px] text-[#d4af37]">❖</div>
           </div>
         </div>
       );
